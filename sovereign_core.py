@@ -88,6 +88,35 @@ ALIVE_FLOOR_FRAC_CFG = 0.60    # never cull below this fraction of population (R
 DAY_CONTEXT = 5000            # context window size = a "DAY" of experience; fills ~once per this many cycles -> sleep. RAISE = longer day.
 PRESERVE_DIVERSITY = True      # don't merge distinct prototype clusters; protect endangered prototypes
 
+# PROBATION WINDOW (2026-09-28): originally "one full inter-sleep window," which is an EMERGENT
+# duration (sleep is context-fullness-triggered, not a fixed cadence) -- at defaults, ~850 cycles
+# (CONTEXT_CAPACITY * CONTEXT_THRESHOLD). Made an explicit, cycle-precise, independently-testable
+# parameter (decoupled from sleep cadence entirely) specifically to A/B it: is ~850 cycles of
+# cull-immunity for a discounted clone too long, too short, or about right? Cleared every cycle in
+# the main loop now, not just at the next sleep event, so a shorter window actually takes effect
+# sooner rather than silently waiting for the next sleep regardless of the configured value.
+#
+# REAL A/B RESULT (2026-09-28, --cycles 4000 --seed 42, identical seed across all three arms,
+# runs bit-identical through cycle 1600 before diverging -- see probation_test_{FULL_850,HALF_425,
+# LONG_1700}.log in this directory):
+#   PROBATION_CYCLES=425 (half):  late-run (cyc 3400-3900) TaskCorrect DROPPED to 0.64-0.66 for
+#                                 four straight checkpoints before partially recovering to 0.750 --
+#                                 a real, measured degradation. Discounted clones got re-exposed to
+#                                 culling before they'd had time to re-prove themselves.
+#   PROBATION_CYCLES=850 (default): late-run (cyc 3400-4000) TaskCorrect held 0.81-0.85, avg ~0.836.
+#   PROBATION_CYCLES=1700 (double): late-run (cyc 3400-4000) TaskCorrect held 0.81-0.86, avg ~0.837
+#                                 -- statistically indistinguishable from 850. Doubling the window
+#                                 bought NOTHING further.
+# CONCLUSION: shorter is a real, measured harm; longer (at least up to 2x) is FREE -- costs nothing,
+# gains nothing. This argues against "just tune the constant bigger" (no evidence more helps) and
+# does NOT clearly argue for adaptive feedback either (if slow-but-eventually-good clones existed,
+# more time should have helped at 1700 and didn't -- the clones that recover mostly do so well
+# within 850; the ones that don't likely wouldn't with more time either). Single-seed result, not
+# fully conclusive -- but the practical takeaway stands regardless: when in doubt, err LONG. Since
+# padding this constant costs nothing, there is no reason to ever set it below the default out of a
+# desire to "save" population churn -- that trade doesn't exist in the data.
+PROBATION_CYCLES = 850
+
 # 🧬 Evolutionary pressure constants
 MUTATION_RATE = 0.15
 VARIATION_MAGNITUDE = 0.2
@@ -957,6 +986,15 @@ class SovereignCore:
                 for b in bricks:
                     if random.random() < 0.1: b.zone = "SLOW"
 
+    def _expire_probation(self):
+        """Clear cull-immunity for any brick whose PROBATION_CYCLES deadline has passed. Called every
+        cycle from run() (not just at sleep) so PROBATION_CYCLES is a real, cycle-precise, testable
+        parameter -- see its definition for why this was made explicit and independently A/B-able."""
+        for b in self.bricks:
+            if b.alive and getattr(b, "probation", False) and self.current_time >= getattr(b, "probation_deadline", 0):
+                b.cull_immune = False
+                b.probation = False
+
     def _engine_caught(self):
         """🔧 Has the engine caught? True when enough NON-SEED cells reliably produce the answer, so the
         swarm can sustain it WITHOUT the seed injecting. Only then may the hand-crank disengage."""
@@ -981,13 +1019,11 @@ class SovereignCore:
         print(" 🌙 SLEEP DAG TRIGGERED: global maintenance phase (replay-all / cull / copy / flush).")
         self.is_sleeping = True
 
-        # PROBATION EXPIRY (2026-09-27): clones from the LAST sleep get exactly one full inter-sleep
-        # window of cull-immunity to re-prove their discounted score, then become normally cullable
-        # again -- separates "temporarily trusted" from "permanently protected."
-        for b in self.bricks:
-            if b.alive and getattr(b, "probation", False):
-                b.cull_immune = False
-                b.probation = False
+        # PROBATION EXPIRY moved to the per-cycle main loop (see _expire_probation()) so a shorter
+        # PROBATION_CYCLES value actually takes effect at that cycle count, not just "whenever the
+        # next sleep happens to occur." Kept as a safety-net backstop here too in case a brick's
+        # deadline was somehow never checked between sleeps.
+        self._expire_probation()
 
         # 🔁 SLEEP REPLAY-ALL-TASKS (the catastrophic-forgetting cure): re-present EVERY known task pair and
         # run learning, so consolidation forms JOINT representations across ALL tasks (weights stay near every
@@ -1162,8 +1198,9 @@ class SovereignCore:
             # so discounted trust and cullability are separated instead of conflated.
             slot.recent_task_score = w.recent_task_score * 0.5
             slot.fitness = w.fitness * 0.6
-            slot.cull_immune = True       # protected for one inter-sleep window despite the discount
-            slot.probation = True         # marks this immunity as temporary -- cleared at next sleep
+            slot.cull_immune = True       # protected for PROBATION_CYCLES despite the discount
+            slot.probation = True         # marks this immunity as temporary -- cleared by cycle deadline
+            slot.probation_deadline = self.current_time + PROBATION_CYCLES
             slot.energy = 20.0
             slot.consolidation_streak = 0
             # inherit the winner's PROTOTYPE too (so the clone recognizes what the winner recognized)
@@ -1201,6 +1238,7 @@ class SovereignCore:
                 slot.fitness = w.fitness * 0.6; slot.energy = 20.0
                 slot.cull_immune = True
                 slot.probation = True
+                slot.probation_deadline = self.current_time + PROBATION_CYCLES
                 slot.consolidation_streak = 0
                 slot.synapses = [type(sy)(sy.target_id, sy.weight, sy.delay) for sy in w.synapses]
                 slot.relays = []
@@ -1254,6 +1292,7 @@ class SovereignCore:
         self._mutate_and_select()
         self._reap_dead()
         self._autosarcophagy()
+        self._expire_probation()
 
         # 🛏️ SLEEP = how she deals with an OVERFILLED CONTEXT WINDOW. Triggered by context FULLNESS at the
         # RIGHT SCALE: the context window is LARGE (a "day" of experience), so filling it -> sleep happens
@@ -1344,7 +1383,7 @@ class SovereignCore:
 # MAIN EXECUTION
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
-    global RECOGNITION_MODE, MAX_CULL_FRAC_CFG, ALIVE_FLOOR_FRAC_CFG, CONTEXT_THRESHOLD, DAY_CONTEXT, PRESERVE_DIVERSITY
+    global RECOGNITION_MODE, MAX_CULL_FRAC_CFG, ALIVE_FLOOR_FRAC_CFG, CONTEXT_THRESHOLD, DAY_CONTEXT, PRESERVE_DIVERSITY, PROBATION_CYCLES
     parser = argparse.ArgumentParser(description="Sovereign Core v4.3 Evolutionary Substrate")
     parser.add_argument("--cycles", type=int, default=3000, help="Number of cycles to run")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
@@ -1354,7 +1393,11 @@ def main():
     parser.add_argument("--sleep-load", type=float, default=CONTEXT_THRESHOLD, help="context load to trigger sleep (RAISE=sleep less often)")
     parser.add_argument("--day-context", type=int, default=DAY_CONTEXT, help="context window size = a 'day'; fills ~once per this many cycles -> sleep (RAISE = longer day = rarer sleep)")
     parser.add_argument("--no-diversity", action="store_true", help="disable prototype diversity preservation")
+    parser.add_argument("--probation-cycles", type=int, default=PROBATION_CYCLES, help="cull-immunity window (in cycles) for discounted clones -- A/B this directly")
+    parser.add_argument("--seed", type=int, default=None, help="seed the stdlib random module for reproducible/comparable A-B runs")
     args = parser.parse_args()
+    if args.seed is not None:
+        random.seed(args.seed)
 
     print("="*70)
     print("SOVEREIGN CORE v4.5 - v4.21b RESURRECTION: garden replants EXTINCT prototypes from ground truth (not only clones survivors)")
@@ -1366,7 +1409,8 @@ def main():
     CONTEXT_THRESHOLD = args.sleep_load
     DAY_CONTEXT = args.day_context
     PRESERVE_DIVERSITY = not args.no_diversity
-    print(f"Recognition: {RECOGNITION_MODE} | cull-frac {MAX_CULL_FRAC_CFG} | alive-floor {ALIVE_FLOOR_FRAC_CFG} | sleep-load {CONTEXT_THRESHOLD} | day-context {DAY_CONTEXT} | diversity {PRESERVE_DIVERSITY}")
+    PROBATION_CYCLES = args.probation_cycles
+    print(f"Recognition: {RECOGNITION_MODE} | cull-frac {MAX_CULL_FRAC_CFG} | alive-floor {ALIVE_FLOOR_FRAC_CFG} | sleep-load {CONTEXT_THRESHOLD} | day-context {DAY_CONTEXT} | diversity {PRESERVE_DIVERSITY} | probation-cycles {PROBATION_CYCLES}")
     print(f"Sleep trigger: >{CONTEXT_THRESHOLD*100:.0f}% context load")
     print(f"Growth factor: +{int((GROWTH_FACTOR-1)*100)}% capacity per rebuild")
     print(f"Zones: FAST (cleanup) / SLOW (persistence) / MIRROR (simulation)")
