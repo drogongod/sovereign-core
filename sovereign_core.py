@@ -73,6 +73,62 @@ STATE_MAX = 31
 # 🌉 Accumulator threshold. Micro-signals commit to discrete state only when |acc| >= 1.0.
 ACCUM_THRESHOLD = 1.0
 
+# 🐺 WOLFPACK (2026-10-01, Jonathan) -- "socializing": a continuously-running pass that hunts for
+# SICK bricks (pinned at the state boundary, the substrate's own documented ratchet-to-STATE_MAX
+# risk -- every zone's signal_map above is entirely positive-valued, no inhibitory signal exists
+# anywhere in this substrate, confirmed by direct measurement in sovereign_core_charlm_test.py:
+# state-pinning hit 100% of living bricks by cycle 600, accuracy collapsed to chance). The existing
+# sleep-DAG cull+copy mechanism (_run_sleep_dag) already replaces whole bad bricks with clones of
+# good ones by TASK CREDIT, but is capped by how many "winner" bricks exist to clone from at any
+# moment -- if the ratchet drifts most of the population toward STATE_MAX simultaneously (a SYSTEMIC
+# bias, not per-brick), there aren't enough winners left and the whole population collapses together
+# before the next sleep. Wolfpack operates at a finer grain, every cycle, not just at sleep: a sick
+# brick's content isn't thrown away and replaced with an unrelated clone -- its PROTOTYPE gets
+# DECOMPOSED and GRAFTED onto whichever living, healthy brick already holds the closest-matching
+# prototype (reinforcing a real existing signal, "socializing" it rather than discarding it), then
+# the sick brick is RESET to a fresh state so it can start over. Toggle for direct A/B testing
+# (same pattern as PROBATION_CYCLES being set from the test harness): sc.WOLFPACK_ENABLED = False
+# reproduces the pre-Wolfpack baseline exactly.
+WOLFPACK_ENABLED = True
+WOLFPACK_PIN_THRESHOLD = 50    # consecutive cycles pinned at STATE_MAX/MIN before a brick is "sick"
+WOLFPACK_GRAFT_ALPHA = 0.15    # how strongly a graft nudges the healthy match's prototype toward the
+# sick brick's -- small and incremental (reinforcement, not overwrite), matching this file's own
+# "sloppy, cheap, constant" design philosophy rather than a single large corrective jump.
+WOLFPACK_MATCH_RADIUS = 10.0   # max prototype-space distance to accept a graft target; beyond this,
+# nothing living resembles the sick brick closely enough to be worth reinforcing -- reset only.
+
+# 🐺🤝 WOLFPACK SISTER-MATCH (2026-10-01, Jonathan: "the relays... they are the Wolfpack. That's the
+# mistake, that's what I forgot to do.") -- real correction to where Wolfpack actually belongs. The
+# EXISTING sister-split mechanism in _fire_relays (below) already does the hard structural half of
+# Wolfpack correctly: detects an overloaded brick (prediction_error > the relay's own evolvable
+# threshold), splits off the excess, and redirects it to a DIFFERENT "sister" cell in the same module
+# (never the source, never its direct feeders -- the design that already correctly avoids forming a
+# tight loop). What it was missing is the "like-to-like" half Wolfpack specifically requires -- sister
+# selection was pure `random.sample`, no awareness of which sister's existing pattern the excess
+# signal actually resembles. WOLFPACK_SISTER_MATCH=True makes that selection CONTENT-AWARE: prefer
+# sisters whose prototype is closest to the source brick's own prototype, falling back to the original
+# random behavior only when the source has no prototype yet (nothing to content-match against) or no
+# prototype-bearing sister exists.
+WOLFPACK_SISTER_MATCH = True
+
+# 🐊 DECAY WIRING (2026-10-01, Jonathan) -- "the sabertooth went extinct from being too perfect a
+# predator; crocodiles and Komodo dragons independently evolved brumation/torpor instead -- near-zero
+# metabolism, still reflexively reactive to a real trigger." His point, made precise against the real
+# code: each ZONE_PARAMS entry above ALREADY DEFINES its own "decay" value (FAST 0.35, SLOW 0.15,
+# MIRROR 0.25) -- but a direct grep of this entire file found it is NEVER READ anywhere. A real,
+# designed-but-never-wired restoring force, not a new mechanism being invented: the zone orientations
+# even already say what was intended ("cleanup" for FAST = light sleeper, fast decay; "persistence"
+# for SLOW = deep torpor, rarely disturbed; "simulation" for MIRROR = in between). This is a DIFFERENT
+# fix than Wolfpack: Wolfpack cleans up a brick AFTER it's already pinned (reactive); decay pulls every
+# brick continuously back toward center at its OWN zone's designed rate (preventive, targets the root
+# cause the substrate's own comments already named -- "no inhibitory signal exists anywhere").
+DECAY_ENABLED = True
+DECAY_PULL_SCALE = 0.05   # keeps the per-cycle pull GENTLE (a continuous restoring force, not a
+# sudden correction) -- a brick pinned at STATE_MAX in the fastest-decaying zone (FAST, 0.35) pulls
+# by roughly (31-15.5)*0.35*0.05 =~ 0.27/cycle, taking dozens of cycles to meaningfully move, same
+# "sloppy, cheap, constant" design philosophy as Wolfpack rather than a jarring one-shot fix. Tunable;
+# this is a starting value to measure from, not a derived constant.
+
 # 🏗️ Initial substrate size & spatial layout
 INIT_BRICKS = 500
 MODULE_SPACING = 40.0
@@ -288,6 +344,7 @@ class Brick:
         self.prediction_error = 0.0
         self.consecutive_errors = 0
         self.correct_predictions = 0
+        self.pin_streak = 0    # 🐺 Wolfpack: consecutive cycles touching STATE_MAX/MIN (see module const)
 
         # 🍼 TASK INTERFACE (call-and-response / "mama" loop):
         # An input (call) is presented; the brick predicts the completion (response). If it matches the
@@ -308,6 +365,18 @@ class Brick:
 
     def commit_accumulators(self, zone_cfg: dict):
         """🌉 Bridge micro-signals to discrete states. Prevents quantization oscillation."""
+        if DECAY_ENABLED:
+            # 🐊 DECAY (2026-10-01) -- the zone's own "decay" config value, wired in for the first
+            # time (see module constant docstring for the full story: defined a year ago, never
+            # connected). A gentle, continuous pull of each state back toward center, at THIS zone's
+            # own designed rate -- the restoring force this substrate's own comments say never
+            # existed. Added to the SAME float accumulators the real signal already uses, so it goes
+            # through the existing threshold-commit bridge below rather than mutating state directly.
+            center = (STATE_MIN + STATE_MAX) / 2.0
+            rate = zone_cfg["decay"] * DECAY_PULL_SCALE
+            self.mem_acc -= (self.mem - center) * rate
+            self.think_acc -= (self.think - center) * rate
+            self.relay_acc -= (self.relay_strength - center) * rate
         for acc_name, state_name in [("mem_acc", "mem"), ("think_acc", "think"), ("relay_acc", "relay_strength")]:
             acc_val = getattr(self, acc_name)
             if abs(acc_val) >= ACCUM_THRESHOLD:
@@ -787,7 +856,20 @@ class SovereignCore:
                                if x.alive and x.module_id == b.module_id
                                and x.id != b.id and x.id not in feeders]
                     if sisters:
-                        for sis in random.sample(sisters, k=min(2, len(sisters))):
+                        # 🐺🤝 WOLFPACK SISTER-MATCH: prefer sisters whose prototype most resembles
+                        # the source's own pattern ("like-to-like", not random) -- see module const
+                        # docstring. Falls back to the original random pick when there's nothing to
+                        # content-match against yet, so early/proto-less bricks are unaffected.
+                        chosen = None
+                        if WOLFPACK_SISTER_MATCH and b.prototype is not None:
+                            proto_sisters = [s for s in sisters if s.prototype is not None]
+                            if proto_sisters:
+                                proto_sisters.sort(key=lambda s: math.sqrt(
+                                    sum((p - q) ** 2 for p, q in zip(b.prototype, s.prototype))))
+                                chosen = proto_sisters[:min(2, len(proto_sisters))]
+                        if chosen is None:
+                            chosen = random.sample(sisters, k=min(2, len(sisters)))
+                        for sis in chosen:
                             # forward-going imitation signal to the sister, delayed (temporal spread).
                             # the sister learns the pattern secondhand; the big signal is dispersed, not looped.
                             sis.receive(sister_amount, src_id=b.id, delay=relay.back_delay)
@@ -1279,6 +1361,74 @@ class SovereignCore:
         print(f" 💤 Sleep complete (REPLACE-ONLY: {copied} weak cells retrained into clones of winners, population conserved). Gen {self.generation} | culled {len(culled)} defective, copied {copied} "
               f"winners | {len(winners)} working cells protected | capacity {self.context_capacity}")
 
+    def _wolfpack_pass(self):
+        """🐺 WOLFPACK / "socializing" (2026-10-01) -- see the WOLFPACK_* module constants for the
+        full rationale. Runs EVERY cycle (unlike sleep, which only fires when context fills): track
+        which living, unprotected bricks are pinned at the state boundary; for any that have been
+        pinned WOLFPACK_PIN_THRESHOLD cycles running, decompose+graft their prototype onto the
+        closest-matching living brick (reinforcing a real signal instead of discarding one), then
+        reset the sick brick to a fresh state. A pure reorganization of content already present in
+        the population -- never adds information, never trains on anything new (Jonathan's framing:
+        "a defrag disc for old mechanical hard drives... fine-tuning in the real sense of the word,
+        not the conventional sense")."""
+        if not WOLFPACK_ENABLED:
+            return 0, 0
+        living = [b for b in self.bricks if b.alive]
+
+        def protected(b):
+            return (b.rom_locked or getattr(b, "cull_immune", False) or getattr(b, "is_seed_crank", False)
+                    or (b.id in self.seed_brick_ids))
+
+        # update each living brick's pin-streak: climbs while touching the boundary, heals to 0 the
+        # instant it isn't (this is a STREAK, not a cumulative scar -- a brick that recovers on its
+        # own before reaching threshold is left alone, matching the "sloppy, cheap, constant" design).
+        for b in living:
+            if b.mem >= STATE_MAX or b.think >= STATE_MAX or b.relay_strength >= STATE_MAX \
+               or b.mem <= STATE_MIN or b.think <= STATE_MIN or b.relay_strength <= STATE_MIN:
+                b.pin_streak += 1
+            else:
+                b.pin_streak = 0
+
+        sick = [b for b in living if not protected(b) and b.pin_streak >= WOLFPACK_PIN_THRESHOLD]
+        if not sick:
+            return 0, 0
+        healthy_proto = [b for b in living if b.prototype is not None and b.pin_streak == 0
+                          and b not in sick]
+        grafted = 0
+        for b in sick:
+            if b.prototype is not None and healthy_proto:
+                best, best_d = None, None
+                for other in healthy_proto:
+                    d = math.sqrt(sum((p - q) ** 2 for p, q in zip(b.prototype, other.prototype)))
+                    if best_d is None or d < best_d:
+                        best, best_d = other, d
+                if best is not None and best_d <= WOLFPACK_MATCH_RADIUS:
+                    # GRAFT: nudge the healthy match's prototype toward the sick brick's (small step,
+                    # reinforcement not overwrite), and give it a small fitness/credit boost -- the
+                    # sick brick's salvageable signal is absorbed into a signal that's actually alive.
+                    best.prototype = [(1 - WOLFPACK_GRAFT_ALPHA) * p + WOLFPACK_GRAFT_ALPHA * q
+                                      for p, q in zip(best.prototype, b.prototype)]
+                    best.fitness = min(1.0, best.fitness + 0.02)
+                    best.recent_task_score = min(1.0, best.recent_task_score + 0.02)
+                    grafted += 1
+            # RESET: whether grafted or not (nothing to graft if no prototype or no close match),
+            # the sick brick itself always gets cleared -- same fresh-state fields Brick.__init__
+            # uses, id/pos/module_id/zone/synapses/relays left untouched (structural placement kept,
+            # corrupted content cleared).
+            b.mem = random.randint(0, STATE_MAX)
+            b.think = random.randint(0, STATE_MAX)
+            b.relay_strength = random.randint(0, STATE_MAX)
+            b.mem_acc = b.think_acc = b.relay_acc = 0.0
+            b.prototype = None
+            b.proto_answer = None
+            b.match_weight = 0.0
+            b.prediction_error = 0.0
+            b.consecutive_errors = 0
+            b.correct_predictions = 0
+            b.consolidation_streak = 0
+            b.pin_streak = 0
+        return len(sick), grafted
+
     def run_cycle(self):
         """🔄 Main execution loop: inject → update → fire → evaluate → mutate → sleep check."""
         self.current_time += 1
@@ -1293,6 +1443,8 @@ class SovereignCore:
         self._reap_dead()
         self._autosarcophagy()
         self._expire_probation()
+        n_sick, n_grafted = self._wolfpack_pass()
+        self._last_wolfpack = (n_sick, n_grafted)
 
         # 🛏️ SLEEP = how she deals with an OVERFILLED CONTEXT WINDOW. Triggered by context FULLNESS at the
         # RIGHT SCALE: the context window is LARGE (a "day" of experience), so filling it -> sleep happens
