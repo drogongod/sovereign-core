@@ -129,6 +129,27 @@ DECAY_PULL_SCALE = 0.05   # keeps the per-cycle pull GENTLE (a continuous restor
 # "sloppy, cheap, constant" design philosophy as Wolfpack rather than a jarring one-shot fix. Tunable;
 # this is a starting value to measure from, not a derived constant.
 
+# 🧬🔀 GROWTH CROSSOVER + SIZE-AWARE SELECTION (2026-10-02, ported from G-EvoNAS, arXiv:2403.02667,
+# after Jonathan asked for a direct comparison: "see if it can fix mine or if necessary replace mine").
+# G-EvoNAS's SuperNet weight-sharing does NOT transfer here -- it fixes proxy-ranking noise from cheaply
+# evaluating untrained candidates, a problem this substrate doesn't have (bricks are already live and
+# continuously self-evaluating on real feedback). But two real structural gaps in _grow_network DO map
+# directly onto two of G-EvoNAS's real mechanisms:
+# (1) growth previously cloned from a SINGLE top-fitness donor module and gaussian-mutated the copy --
+#     pure asexual mutation, no crossover at all. G-EvoNAS crosses TWO elite parents' connections and
+#     operations together (its "constrained uniform crossover").
+# (2) growth previously ranked candidate modules by raw average fitness only. The EXISTING
+#     `n_alive < INIT_BRICKS*2` check (see _run_sleep_dag) is a global binary size gate, not a
+#     per-candidate trade-off the way G-EvoNAS's two-objective (accuracy vs size) pNSGAIII selection is.
+GROWTH_CROSSOVER_ENABLED = True
+GROWTH_CROSSOVER_RATE = 0.3     # fraction of new clones built by blending TWO parent modules' traits
+# (real two-parent crossover) instead of mutating a single donor's. Toggle for direct A/B:
+# sc.GROWTH_CROSSOVER_ENABLED = False reproduces the old single-donor-only behavior exactly.
+GROWTH_SIZE_AWARE = True        # when True, rank candidate modules for growth by fitness PER BRICK
+# (avg_fitness / module_size) instead of raw avg_fitness alone -- a cheap proxy for G-EvoNAS's
+# accuracy-vs-size Pareto objective: a small module pulling its weight beats an equally-fit large one,
+# so growth stops being blind to how much capacity it's already spending for that fitness.
+
 # 🏗️ Initial substrate size & spatial layout
 INIT_BRICKS = 500
 MODULE_SPACING = 40.0
@@ -464,11 +485,16 @@ class SovereignCore:
         This is the piece that was lost: the sleep DAG's existing cull+copy replaces weak cells
         WITHIN a fixed population -- it never adds real new capacity. This is real structural
         growth, adapted from a working method found in an earlier version of this same lineage
-        (Max_sovereign_core_v4_2.py's _grow_network): rank whole MODULES by their average brick
-        fitness, take the top performers, and clone bricks FROM them into a brand new module --
-        each clone inherits its donor's state (mem/think/relay_strength) AND its donor's evolved
-        relay traits (split_threshold/split_ratio/back_delay), with small gaussian variation, not
-        exact duplication. "Growth came from cloning bricks that worked" -- his own words for it.
+        (Max_sovereign_core_v4_2.py's _grow_network): rank whole MODULES by fitness, take the top
+        performers, and clone bricks FROM them into a brand new module -- each clone inherits its
+        donor's state (mem/think/relay_strength) AND its donor's evolved relay traits
+        (split_threshold/split_ratio/back_delay), with small gaussian variation, not exact
+        duplication. "Growth came from cloning bricks that worked" -- his own words for it.
+
+        2026-10-02 additions (ported from G-EvoNAS, see GROWTH_CROSSOVER_ENABLED/GROWTH_SIZE_AWARE
+        above): module ranking can use fitness-PER-BRICK instead of raw average fitness (size-aware),
+        and a clone can be built by crossing TWO parent modules' traits instead of mutating one donor
+        (real crossover, not just mutation) -- both toggleable for direct A/B against the original.
         """
         living = [b for b in self.bricks if b.alive]
         if not living:
@@ -479,12 +505,22 @@ class SovereignCore:
             mod_fitness[b.module_id].append(b.fitness)
             mod_bricks[b.module_id].append(b)
         avg_by_mod = {m: sum(f) / max(len(f), 1) for m, f in mod_fitness.items()}
-        top_mods = sorted(avg_by_mod.items(), key=lambda x: x[1], reverse=True)[:2]
+        if GROWTH_SIZE_AWARE:
+            # fitness PER BRICK: a small module pulling its weight beats an equally-fit large one --
+            # cheap proxy for G-EvoNAS's accuracy-vs-size Pareto objective, not a full Pareto front.
+            rank_key = {m: avg_by_mod[m] / max(len(mod_bricks[m]), 1) for m in avg_by_mod}
+        else:
+            rank_key = avg_by_mod
+        top_mods = sorted(rank_key.items(), key=lambda x: x[1], reverse=True)[:2]
+        top_mod_ids = [m for m, _ in top_mods]
 
         grid = 4
         new_bricks = 0
+        n_crossed = 0
         for mod_id, fit in top_mods:
             src_bricks = mod_bricks[mod_id]
+            other_mod_ids = [m for m in top_mod_ids if m != mod_id]
+            other_bricks = mod_bricks[other_mod_ids[0]] if other_mod_ids else []
             new_mod_id = self.num_modules
             cx = (new_mod_id % grid) * self.spacing
             cy = (new_mod_id // grid) * self.spacing
@@ -494,27 +530,53 @@ class SovereignCore:
                        cy + random.uniform(-self.module_size, self.module_size),
                        random.uniform(-self.module_size, self.module_size))
                 donor = random.choice(src_bricks)
+                do_cross = (GROWTH_CROSSOVER_ENABLED and other_bricks
+                            and random.random() < GROWTH_CROSSOVER_RATE)
+                donor2 = random.choice(other_bricks) if do_cross else None
                 nb = self._create_brick(pos=pos, module_id=new_mod_id, zone=donor.zone)
-                # inherit donor's STATE, mutated, not copied exactly
-                nb.mem = int(max(STATE_MIN, min(STATE_MAX, donor.mem + random.gauss(0, 1.0))))
-                nb.think = int(max(STATE_MIN, min(STATE_MAX, donor.think + random.gauss(0, 1.0))))
-                nb.relay_strength = int(max(STATE_MIN, min(STATE_MAX, donor.relay_strength + random.gauss(0, 1.0))))
+                if donor2 is not None:
+                    # real two-parent crossover: blend each scalar trait by a random mix factor per
+                    # trait (arithmetic crossover -- the real-coded analogue of G-EvoNAS's uniform
+                    # crossover over connections/operations), THEN apply the same gaussian variation
+                    # as the single-donor path so a crossed clone isn't just a frozen average.
+                    def _blend(a, b):
+                        t = random.random()
+                        return a * t + b * (1.0 - t)
+                    base_mem = _blend(donor.mem, donor2.mem)
+                    base_think = _blend(donor.think, donor2.think)
+                    base_relay = _blend(donor.relay_strength, donor2.relay_strength)
+                    n_crossed += 1
+                else:
+                    base_mem, base_think, base_relay = donor.mem, donor.think, donor.relay_strength
+                # inherit (donor, or blended donor+donor2) STATE, mutated, not copied exactly
+                nb.mem = int(max(STATE_MIN, min(STATE_MAX, base_mem + random.gauss(0, 1.0))))
+                nb.think = int(max(STATE_MIN, min(STATE_MAX, base_think + random.gauss(0, 1.0))))
+                nb.relay_strength = int(max(STATE_MIN, min(STATE_MAX, base_relay + random.gauss(0, 1.0))))
                 nb.energy = 20.0
-                nb.stability = donor.stability
-                # inherit donor's EVOLVED RELAY TRAITS -- the actual point of cloning "what worked":
-                # a fresh PairedRelay from _create_brick starts at random init, overwrite with the
-                # donor's own tuned split_threshold/split_ratio/back_delay, gaussian-varied.
+                nb.stability = donor.stability if donor2 is None else _blend(donor.stability, donor2.stability)
+                # inherit evolved RELAY TRAITS (split_threshold/split_ratio/back_delay) -- the actual
+                # point of cloning "what worked"; crossed when donor2 is present, else single-donor
+                # mutated as before. A fresh PairedRelay from _create_brick starts at random init.
                 if donor.relays and nb.relays:
                     donor_relay = donor.relays[0]
+                    if donor2 is not None and donor2.relays:
+                        donor2_relay = donor2.relays[0]
+                        base_thresh = _blend(donor_relay.split_threshold, donor2_relay.split_threshold)
+                        base_ratio = _blend(donor_relay.split_ratio, donor2_relay.split_ratio)
+                        base_delay = donor_relay.back_delay if random.random() < 0.5 else donor2_relay.back_delay
+                    else:
+                        base_thresh, base_ratio, base_delay = (donor_relay.split_threshold,
+                                                                 donor_relay.split_ratio,
+                                                                 donor_relay.back_delay)
                     for nr in nb.relays:
-                        nr.split_threshold = max(0.5, min(8.0, donor_relay.split_threshold + random.gauss(0, 0.2)))
-                        nr.split_ratio = max(0.1, min(0.9, donor_relay.split_ratio + random.gauss(0, 0.03)))
-                        nr.back_delay = max(1, donor_relay.back_delay + random.choice([-1, 0, 0, 1]))
+                        nr.split_threshold = max(0.5, min(8.0, base_thresh + random.gauss(0, 0.2)))
+                        nr.split_ratio = max(0.1, min(0.9, base_ratio + random.gauss(0, 0.03)))
+                        nr.back_delay = max(1, base_delay + random.choice([-1, 0, 0, 1]))
                 new_bricks += 1
             self.num_modules += 1
         if new_bricks:
             print(f"      🌱 Growing network: cloned {new_bricks} bricks from {len(top_mods)} "
-                  f"high-fitness module(s) into new capacity.")
+                  f"high-fitness module(s) into new capacity ({n_crossed} via two-parent crossover).")
 
     def _next_id(self) -> int:
         self._max_id_tracker += 1
