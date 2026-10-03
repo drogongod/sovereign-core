@@ -141,14 +141,17 @@ DECAY_PULL_SCALE = 0.05   # keeps the per-cycle pull GENTLE (a continuous restor
 # (2) growth previously ranked candidate modules by raw average fitness only. The EXISTING
 #     `n_alive < INIT_BRICKS*2` check (see _run_sleep_dag) is a global binary size gate, not a
 #     per-candidate trade-off the way G-EvoNAS's two-objective (accuracy vs size) pNSGAIII selection is.
-GROWTH_CROSSOVER_ENABLED = True
+GROWTH_CROSSOVER_ENABLED = False  # OFF by default -- unlike Wolfpack/decay/PROBATION_CYCLES, this has
+# NOT been shown to help. The only real A/B run so far (2000 cycles, same seed/task as every other test
+# in this file) trended WORSE, not better: baseline exact-match 4/46 (8.7%) vs crossover+size-aware ON
+# 2/46 (4.3%). One run, one seed -- not a verdict either way, but not grounds for a default ON either.
+# Toggle for direct A/B: sc.GROWTH_CROSSOVER_ENABLED = True to test it.
 GROWTH_CROSSOVER_RATE = 0.3     # fraction of new clones built by blending TWO parent modules' traits
-# (real two-parent crossover) instead of mutating a single donor's. Toggle for direct A/B:
-# sc.GROWTH_CROSSOVER_ENABLED = False reproduces the old single-donor-only behavior exactly.
-GROWTH_SIZE_AWARE = True        # when True, rank candidate modules for growth by fitness PER BRICK
-# (avg_fitness / module_size) instead of raw avg_fitness alone -- a cheap proxy for G-EvoNAS's
-# accuracy-vs-size Pareto objective: a small module pulling its weight beats an equally-fit large one,
-# so growth stops being blind to how much capacity it's already spending for that fitness.
+# (real two-parent crossover) instead of mutating a single donor's, when GROWTH_CROSSOVER_ENABLED=True.
+GROWTH_SIZE_AWARE = False        # OFF by default, same reason as GROWTH_CROSSOVER_ENABLED above -- not
+# yet shown to help, same single A/B run. When True, ranks candidate modules for growth by fitness PER
+# BRICK (avg_fitness / module_size) instead of raw avg_fitness alone -- a cheap proxy for G-EvoNAS's
+# accuracy-vs-size Pareto objective. Needs multi-seed testing before this is a real default candidate.
 
 # 🏗️ Initial substrate size & spatial layout
 INIT_BRICKS = 500
