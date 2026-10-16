@@ -97,6 +97,78 @@ WOLFPACK_GRAFT_ALPHA = 0.15    # how strongly a graft nudges the healthy match's
 WOLFPACK_MATCH_RADIUS = 10.0   # max prototype-space distance to accept a graft target; beyond this,
 # nothing living resembles the sick brick closely enough to be worth reinforcing -- reset only.
 
+# 🐺🔬 WOLFPACK LSL GATE (2026-10-08, Jonathan: "LSL might have some clues to fix my wolf pack") --
+# replaces WOLFPACK_MATCH_RADIUS's single fixed global distance with a density-based accept/reject
+# test, adapted from Local Support Learning (arXiv:2610.02126, verified real this session, see
+# galatea_superposition_interference_idea.md Pass 10). LSL's real mechanism: an adapter's gate opens
+# only when an input's density under that adapter's OWN fitted distribution (Phi_pos) exceeds its
+# density under a shared reference distribution (Phi_neg) -- not a fixed threshold, a MARGIN that
+# adapts to how tight or loose the local distribution actually is. Applied here: instead of "accept
+# any living brick within a fixed radius of 10.0, treating a dense cluster and a sparse one
+# identically," fit Phi_pos from the WOLFPACK_GATE_K_NEIGHBORS healthy prototypes nearest the sick
+# brick (the local neighborhood the graft target actually sits in) and Phi_neg from ALL living
+# healthy prototypes pooled (the generic reference, same role as LSL's small generic pretraining
+# sample) -- accept the graft only if the sick brick's prototype is MORE consistent with that local
+# neighborhood than with the population at large. A tight, crowded neighborhood gets a strict
+# effective radius; a sparse one gets a lenient one -- exactly what a single hand-picked constant
+# cannot do. The actual graft TARGET is still the single nearest healthy brick (unchanged); this
+# only changes the ACCEPT/REJECT decision. Pre-validated on a separate substrate before being ported
+# here: lsl_gate_routing_test.py (D:\flybrain) showed a real fitted gate of this same shape (diagonal
+# Gaussian Phi_pos/Phi_neg, log-density margin) recovers routing performance indistinguishable from
+# (slightly better than) oracle-labeled routing -- 94.2% agreement, 6.871 vs 6.906 loss.
+# ✅ MULTI-SEED A/B CONFIRMED on Sovereign Core itself, 2026-10-09 (5 seeds: 42, 7, 13, 99, 2024;
+# 2000 cycles each, same methodology as every other A/B in this file): final-checkpoint exact-match
+# improved on 4/5 seeds (avg 6.06% baseline -> 11.3% gate, nearly double; seed 7 alone: 8.7% -> 23.9%).
+# The gate grafts LESS OFTEN in 5/5 seeds (more selective, no exceptions) and does NOT reduce raw
+# pinning (a wash, 32.7% baseline vs 34.2% gate) -- it trades quantity for quality: fewer grafts, but
+# the ones it accepts are precise enough to show up in real task retention, exactly what LSL's own
+# theory predicts. First Wolfpack-family mechanism in this file's history to earn default-ON purely
+# on a measured multi-seed CAPABILITY gain, not just symptom containment (every prior result here --
+# decay, Wolfpack alone, sister-match -- only ever touched pinning without moving accuracy). Full
+# numbers: galatea_superposition_interference_idea.md Pass 10. Toggle for direct A/B:
+# sc.WOLFPACK_LSL_GATE = False reproduces the pre-gate fixed-radius baseline exactly.
+WOLFPACK_LSL_GATE = True
+WOLFPACK_GATE_K_NEIGHBORS = 5       # size of the local neighborhood Phi_pos is fit from
+WOLFPACK_GATE_VAR_FLOOR_FRAC = 0.1  # variance floor as a fraction of the GLOBAL (Phi_neg) per-dim
+# variance -- prevents a near-degenerate local neighborhood (e.g. K neighbors that happen to be
+# nearly identical) from producing a near-zero variance that makes the gate pathologically strict;
+# same role as the variance floor in lsl_gate_routing_test.py's fit_diag_gaussian, same fraction
+# scaled down slightly since K=5 here is a much smaller sample than that test's whole-cluster fits.
+
+# 🐺🔬 WOLFPACK LSL PIN-GATE (2026-10-09, Jonathan: "port the same gate idea to the pin-threshold
+# timer, the last unbuilt piece") -- the third of the three swaps scheduled in
+# galatea_superposition_interference_idea.md Pass 10. WOLFPACK_PIN_THRESHOLD=50 gates on a hard
+# structural fact (mem/think/relay_strength exactly AT the integer boundary) for a fixed number of
+# consecutive cycles, applied identically to every zone regardless of that zone's own dynamics (FAST
+# decay=0.35, SLOW=0.15, MIRROR=0.25 -- a SLOW brick's natural restoring force is more than twice as
+# weak as FAST's, so "stuck 50 cycles" is not equally anomalous in both). Unlike the graft-accept
+# gate (a genuine two-sided "does this match THIS neighborhood or the background" question), raw
+# boundary-touching is a hard yes/no fact, not something density estimation improves. What a density
+# gate CAN improve: the exact-equality check misses a brick persistently oscillating just short of
+# the boundary (e.g. 29-30-29-30 in a zone whose healthy baseline sits near the center) -- genuinely
+# unhealthy drift that `>= STATE_MAX` structurally cannot see. WOLFPACK_LSL_PIN_GATE replaces the
+# per-cycle accumulate condition: instead of "touching the exact boundary," accumulate when a
+# brick's (mem, think, relay_strength) state has LOWER density under its OWN ZONE's healthy
+# baseline (Phi_pos, fit each cycle from that zone's living pin_streak==0 bricks) than under the
+# shared background (Phi_neg, fit from every living brick pooled) -- same Phi_pos/Phi_neg margin
+# mechanism as the graft gate, applied to raw state instead of prototype. WOLFPACK_PIN_THRESHOLD
+# itself (the consecutive-cycle requirement) is UNCHANGED and deliberately not touched in this same
+# edit -- that is a separate, orthogonal question with no evidence yet either way, and bundling two
+# unproven changes into one A/B would make neither result interpretable. A zone with fewer than 2
+# currently-healthy bricks has nothing to fit Phi_pos from; those bricks fall back to the original
+# exact-boundary check that cycle rather than guessing.
+# ❌ MULTI-SEED A/B RESULT, 2026-10-09 -- NEGATIVE, not just unproven. Same 5-seed/2000-cycle
+# methodology as WOLFPACK_LSL_GATE's confirmation, isolating only this toggle on top of that
+# already-default-on gate. Final exact-match: baseline avg 11.3% -> pin-gate avg 6.1% (nearly
+# halved); wins 1/5 seeds, ties 1/5, loses 3/5 (two large losses, -21.7pp and -10.9pp). Root cause
+# visible directly in the data: this gate flags ~2x MORE bricks as sick than the exact-boundary
+# check, every seed -- the opposite direction from the graft gate (which won by being MORE
+# selective). Over-triggering resets real, harmless state for bricks that were never actually
+# pathological. Full numbers: galatea_superposition_interference_idea.md Pass 11. Stays OFF --
+# this is a tested, closed, negative result, not an open question. Toggle for re-verification only:
+# sc.WOLFPACK_LSL_PIN_GATE = True.
+WOLFPACK_LSL_PIN_GATE = False
+
 # 🐺🤝 WOLFPACK SISTER-MATCH (2026-10-01, Jonathan: "the relays... they are the Wolfpack. That's the
 # mistake, that's what I forgot to do.") -- real correction to where Wolfpack actually belongs. The
 # EXISTING sister-split mechanism in _fire_relays (below) already does the hard structural half of
@@ -1447,27 +1519,100 @@ class SovereignCore:
         # update each living brick's pin-streak: climbs while touching the boundary, heals to 0 the
         # instant it isn't (this is a STREAK, not a cumulative scar -- a brick that recovers on its
         # own before reaching threshold is left alone, matching the "sloppy, cheap, constant" design).
-        for b in living:
-            if b.mem >= STATE_MAX or b.think >= STATE_MAX or b.relay_strength >= STATE_MAX \
-               or b.mem <= STATE_MIN or b.think <= STATE_MIN or b.relay_strength <= STATE_MIN:
-                b.pin_streak += 1
-            else:
-                b.pin_streak = 0
+        if WOLFPACK_LSL_PIN_GATE:
+            # 🐺🔬 per-zone Phi_pos (healthy bricks' own zone, as of END of last cycle) vs shared
+            # Phi_neg (every living brick pooled) -- see WOLFPACK_LSL_PIN_GATE's module comment.
+            healthy_now = [b for b in living if b.pin_streak == 0]
+            by_zone = {}
+            for b in healthy_now:
+                by_zone.setdefault(b.zone, []).append(b)
+            zone_gauss = {}
+            for zone, members in by_zone.items():
+                if len(members) < 2:
+                    continue
+                cols = [[getattr(hb, f) for hb in members] for f in ("mem", "think", "relay_strength")]
+                mean = [sum(c) / len(c) for c in cols]
+                var = [sum((x - m) ** 2 for x in c) / len(c) for c, m in zip(cols, mean)]
+                zone_gauss[zone] = (mean, var)
+
+            all_cols = [[getattr(hb, f) for hb in living] for f in ("mem", "think", "relay_strength")]
+            global_mean = [sum(c) / len(c) for c in all_cols]
+            global_var = [sum((x - m) ** 2 for x in c) / len(c) for c, m in zip(all_cols, global_mean)]
+
+            def pin_log_density(x, mean, var):
+                floor = [max(v * WOLFPACK_GATE_VAR_FLOOR_FRAC, 1e-6) for v in global_var]
+                v = [max(vi, fl) for vi, fl in zip(var, floor)]
+                return -0.5 * sum((xi - mi) ** 2 / vi + math.log(2 * math.pi * vi)
+                                   for xi, mi, vi in zip(x, mean, v))
+
+            for b in living:
+                state = (b.mem, b.think, b.relay_strength)
+                if b.zone in zone_gauss:
+                    zmean, zvar = zone_gauss[b.zone]
+                    anomalous = pin_log_density(state, zmean, zvar) < pin_log_density(state, global_mean, global_var)
+                else:
+                    # too few healthy peers in this zone to fit Phi_pos -- fall back to the exact
+                    # boundary check for just this brick rather than guessing.
+                    anomalous = (b.mem >= STATE_MAX or b.think >= STATE_MAX or b.relay_strength >= STATE_MAX
+                                 or b.mem <= STATE_MIN or b.think <= STATE_MIN or b.relay_strength <= STATE_MIN)
+                b.pin_streak = b.pin_streak + 1 if anomalous else 0
+        else:
+            for b in living:
+                if b.mem >= STATE_MAX or b.think >= STATE_MAX or b.relay_strength >= STATE_MAX \
+                   or b.mem <= STATE_MIN or b.think <= STATE_MIN or b.relay_strength <= STATE_MIN:
+                    b.pin_streak += 1
+                else:
+                    b.pin_streak = 0
 
         sick = [b for b in living if not protected(b) and b.pin_streak >= WOLFPACK_PIN_THRESHOLD]
         if not sick:
             return 0, 0
         healthy_proto = [b for b in living if b.prototype is not None and b.pin_streak == 0
                           and b not in sick]
+
+        # 🐺🔬 Phi_neg: ONE shared reference distribution fit over every living healthy prototype,
+        # refit fresh each wolfpack pass (cheap -- mean/var over whatever's currently alive, same
+        # spirit as LSL's small generic reference sample). Only used when WOLFPACK_LSL_GATE is on.
+        global_mean = global_var = None
+        if WOLFPACK_LSL_GATE and healthy_proto:
+            dims = len(healthy_proto[0].prototype)
+            cols = [[hp.prototype[d] for hp in healthy_proto] for d in range(dims)]
+            global_mean = [sum(c) / len(c) for c in cols]
+            global_var = [sum((x - m) ** 2 for x in c) / len(c) for c, m in zip(cols, global_mean)]
+
+        def log_gaussian_density(x, mean, var):
+            floor = [max(v * WOLFPACK_GATE_VAR_FLOOR_FRAC, 1e-6) for v in (global_var or var)]
+            v = [max(vi, fl) for vi, fl in zip(var, floor)]
+            return -0.5 * sum((xi - mi) ** 2 / vi + math.log(2 * math.pi * vi)
+                               for xi, mi, vi in zip(x, mean, v))
+
+        def lsl_gate_accept(proto, sorted_candidates):
+            """Accept iff proto is a better fit to the K nearest healthy prototypes' own local
+            distribution than to the shared global one -- a margin that tightens in crowded regions
+            of prototype-space and loosens in sparse ones, instead of one fixed radius for both."""
+            k = min(WOLFPACK_GATE_K_NEIGHBORS, len(sorted_candidates))
+            neighborhood = sorted_candidates[:k]
+            dims = len(proto)
+            cols = [[c.prototype[d] for c in neighborhood] for d in range(dims)]
+            local_mean = [sum(c) / len(c) for c in cols]
+            local_var = [sum((x - m) ** 2 for x in c) / len(c) for c, m in zip(cols, local_mean)]
+            margin = (log_gaussian_density(proto, local_mean, local_var)
+                      - log_gaussian_density(proto, global_mean, global_var))
+            return margin > 0.0
+
         grafted = 0
         for b in sick:
             if b.prototype is not None and healthy_proto:
-                best, best_d = None, None
-                for other in healthy_proto:
-                    d = math.sqrt(sum((p - q) ** 2 for p, q in zip(b.prototype, other.prototype)))
-                    if best_d is None or d < best_d:
-                        best, best_d = other, d
-                if best is not None and best_d <= WOLFPACK_MATCH_RADIUS:
+                sorted_candidates = sorted(
+                    healthy_proto,
+                    key=lambda other: math.sqrt(sum((p - q) ** 2 for p, q in zip(b.prototype, other.prototype))))
+                best = sorted_candidates[0]
+                best_d = math.sqrt(sum((p - q) ** 2 for p, q in zip(b.prototype, best.prototype)))
+                if WOLFPACK_LSL_GATE:
+                    accept = lsl_gate_accept(b.prototype, sorted_candidates)
+                else:
+                    accept = best_d <= WOLFPACK_MATCH_RADIUS
+                if accept:
                     # GRAFT: nudge the healthy match's prototype toward the sick brick's (small step,
                     # reinforcement not overwrite), and give it a small fitness/credit boost -- the
                     # sick brick's salvageable signal is absorbed into a signal that's actually alive.
