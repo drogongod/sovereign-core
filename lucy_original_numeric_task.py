@@ -58,6 +58,16 @@ class OriginalTaskCore(sc.SovereignCore):
         correct = 0
         for call, target in held_out:
             self.inject_problem("probe", 1.0, forced_call=list(call))
+            # BUG7 FIX: inject_problem()'s TASK_PAIRS-lookup default silently sets
+            # self.current_target=0 for any forced_call not in TASK_PAIRS -- true for every
+            # held-out triple by design. That wrong, leaked target was feeding into
+            # _update_bricks()'s update_prediction_error() before _fire_relays()/_read_response()
+            # ran, distorting this cell's internal prediction-error/relay-splitting dynamics
+            # during the very probe meant to measure clean generalization. Scoring below already
+            # used the real `target` directly, so the REPORTED numbers weren't mis-scored -- but
+            # the substrate's OWN response could have been influenced by the wrong internal
+            # target. Explicitly override it to the real held-out answer before the rest runs.
+            self.current_target = float(target)
             self._update_bricks()
             self._fire_relays()
             resp = self._read_response()

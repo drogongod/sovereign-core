@@ -258,14 +258,119 @@ DIAGNOSTIC_PROBE_ENABLED = False
 # "teacher" status (cull_immune=True) after only 40 cycles, then broadcasts its (memorized, not
 # general) answer as a stable target for neighbors to imitate -- actively crystallizing the
 # memorized attractors rather than letting evolution keep searching for something that
-# generalizes. Code-verified correction to the models' claims: immunity is NOT literally
-# permanent -- there's already a revocation path (cull_immune=False if recent_task_score<0.40 for
-# 60+ consecutive cycles) -- but all four models still flagged this mechanism as the most likely
-# culprit for the attractor-clustering/low-generalization pattern. Default True preserves the
-# exact historical/proven behavior (every result recorded in HANDOFF.md used this). Set False for
-# a clean ablation run: does held-out generalization (currently 1/4=25%) improve with teacher
-# promotion disabled entirely, same seed, same task, nothing else changed?
+# generalizes. ⚠️ CORRECTION (2026-10-17, later the same night): I originally wrote here that
+# immunity is "NOT literally permanent" because of a revocation path (cull_immune=False if
+# recent_task_score<0.40 for 60+ consecutive cycles). That was WRONG -- checked again after
+# ChatGPT (reading this file directly) pointed out the decrement that feeds that check is
+# `consolidation_streak = max(0, ... - 1)`, which is FLOORED at 0 and can mathematically never
+# reach <=-60. The revocation branch was dead code; immunity really was permanent once granted.
+# See BUG8_IMMUNITY_REVOCABLE below for the real fix. Default True preserves the exact historical/
+# proven behavior (every result recorded in HANDOFF.md through this point used this). Set False
+# for a clean ablation run: does held-out generalization improve with teacher promotion disabled
+# entirely, same seed, same task, nothing else changed?
 IMMUNE_TEACH_ENABLED = True
+
+# 🐛✅ 2026-10-17, "apply fixes and test it": 8 concrete, code-verified bugs found by ChatGPT
+# (given live GitHub read access to this exact file) during the adversarial-review follow-up, all
+# reviewed by Jonathan directly, all applied here as real fixes (not just ablation toggles) since
+# they're genuine defects against the engine's own documented design intent, not design-philosophy
+# questions. Each flag below defaults to the FIXED/correct behavior; set False only to reproduce
+# the old (buggy) behavior for an A/B comparison against every prior result in HANDOFF.md.
+
+# BUG1: _fire_relays() never checked b.fired_this_cycle -- relays kept transmitting regardless of
+# whether the source brick actually fired in response to the current input, completely decoupled
+# from the engine's own "SPEAK-ONLY-WHEN-SPOKEN-TO" firing-gate design. This IS a real, confirmed
+# discrepancy against the documented design intent. The "fix" (gate relay transmission on
+# fired_this_cycle) is correct in principle, but TESTED DIRECTLY (2026-10-17) and found to break
+# the numeric task outright when applied as a hard default: TaskCorrect flatlined at exactly 0.500
+# (the _evaluate_fitness fallback for "no response produced"), exact-match dropped to 0/6, every
+# held-out generalization probe returned None (no output brick ever fired). The existing,
+# already-evolved population apparently relies on relays propagating regardless of firing status
+# to maintain enough baseline signal flow to function at all -- removing that without letting the
+# population re-evolve under the new regime effectively silences the network. Confirmed via direct
+# A/B: reverting ONLY this one flag (all 7 other fixes still applied) restored healthy behavior
+# (TaskCorrect 0.76-0.89, real IMMUNE+TEACH promotions AND revocations both firing correctly).
+# ChatGPT itself flagged this exact risk when it found the bug: "I would not blindly add a firing
+# gate to the production engine -- doing so could change its existing dynamics dramatically. But a
+# controlled experiment comparing firing-gated versus ungated relays is now a very high priority."
+# Default False (preserves working behavior) until a real controlled experiment -- ideally letting
+# the population evolve from scratch UNDER the gated regime, not retrofitting it onto a population
+# tuned for the old one -- can test whether gating helps once given a fair chance to adapt.
+BUG1_RELAY_REQUIRES_FIRING = False
+
+# BUG2: inject_problem()'s generic `for elem in call: b.receive(...)` loop is provably
+# order-independent (receive() only does additive accumulation, and addition is commutative) --
+# only call[-1]/call[-2] carried any positional information via separate explicit lines. For a
+# 16-element bit-level context, 14 of 16 positions collapsed into one order-blind sum -- the
+# mechanistic root cause of the 99.8% collision rate found by sc_collision_probe.py. Real fix:
+# scale each element's injected signal by a position-dependent factor so order actually matters.
+BUG2_POSITION_AWARE_ENCODING = True
+POSITION_WEIGHT_SCALE = 0.15  # tuning knob for how strongly position affects injected magnitude
+
+# BUG3 (partial fix -- see HANDOFF.md for the part NOT changed): recent_task_score's recog_reward
+# gate (the signal that specifically drives IMMUNE+TEACH promotion eligibility) was too lenient --
+# ans_err<1.5 -> full reward, ans_err<3.0 -> half reward -- on a [0,31] range that's a wide margin
+# for "close enough to be trusted as a teacher." Tightened here. NOTE: the core whole_correct
+# graded-closeness fitness formula (which drives ordinary evolutionary selection pressure, not
+# teacher promotion specifically) is intentionally left untouched -- smooth partial-credit shaping
+# for a search/selection signal is standard practice, not obviously a bug, and changing it would
+# alter the whole fitness landscape in ways nobody has reason to be confident about yet.
+BUG3_STRICT_TEACHER_REWARD = True
+TEACHER_REWARD_FULL_MARGIN = 0.75   # was 1.5
+TEACHER_REWARD_HALF_MARGIN = 1.5    # was 3.0
+
+# BUG4 (partial fix -- see HANDOFF.md for the part NOT changed): `improved = whole_correct > prev`
+# compared the current cycle's whole-organism correctness against a SINGLE GLOBAL previous value,
+# even though consecutive cycles can present completely different, unrelated task pairs under
+# interleaved training -- a relay could get "split_helped" credit merely because a DIFFERENT,
+# easier task happened to score higher right after it split, not because its own split caused
+# anything. Real fix: track the previous score PER TASK (keyed by the call tuple), so "improved"
+# genuinely means "this same task scored better than last time it was presented." NOTE: the
+# deeper static-synapse-graph-vs-dynamic-relay-path credit mismatch ChatGPT also flagged is NOT
+# fixed here -- redesigning credit propagation to follow the actual relay/sister delivery graph
+# instead of the static synapse graph is a much larger change than this batch's scope.
+BUG4_PER_TASK_IMPROVEMENT_TRACKING = True
+
+# BUG5: a "frozen" teacher brick's _teach_answer could still drift -- _update_bricks() pins
+# b.mem/think to the stored _teach_answer at the TOP of the cycle, but commit_accumulators() ran
+# for teach_freeze bricks too (only rom_locked bricks were skipped) and could change b.mem again
+# the SAME cycle, and the drifted value then became the new _teach_answer at the bottom. Real fix:
+# skip commit_accumulators/update_prediction_error for teach_freeze bricks too, matching the
+# "hold a stable target while teaching" design intent already stated in the code's own comments.
+BUG5_TRUE_FROZEN_TEACHER = True
+
+# BUG6 (the biggest architectural change in this batch, and -- confirmed by direct testing,
+# 2026-10-17 -- the one that breaks exact-match precision outright): Brick.receive(signal, src_id,
+# delay) never referenced its own `delay` or `src_id` parameters -- every signal applied
+# synchronously, same-cycle, regardless of the evolved back_delay/base_delay relay traits. The
+# "delayed, temporally offset" signal-propagation design described in this file's own comments had
+# zero actual effect. The fix (a real pending-delivery queue, flushed once per cycle) is correct
+# and DOES make the evolved delay traits actually delay signal arrival -- but isolated-tested
+# against the numeric task, it alone collapses exact-match to 0/6 across an entire 8000-cycle run
+# (TaskCorrect stayed superficially healthy, 0.76-0.85, since that's a graded closeness metric, not
+# exact correctness). Leading hypothesis, not yet confirmed: _read_response() only counts bricks
+# that fired THIS exact cycle, and introducing real multi-cycle delay pushes the informative signal
+# to arrive on a DIFFERENT cycle than whichever one _read_response() happens to be called on,
+# systematically losing exact-value precision even though the substrate is still "in the right
+# ballpark." Confirmed via direct A/B: reverting ONLY this flag (BUG1 also off, all other 6 fixes
+# on) restored healthy exact-match (2/6, 1/6, 3/6 across checkpoints, matching/exceeding the proven
+# baseline). Default False (preserves working behavior) -- real delayed delivery is architecturally
+# correct and probably worth pursuing, but needs the readout/evaluation logic redesigned around
+# genuinely asynchronous arrival (and likely a population re-evolved under the new timing regime)
+# before it can be a safe default, not a one-flag flip.
+BUG6_REAL_SIGNAL_DELAY = False
+
+# BUG7 is fixed at the test-script level (lucy_original_numeric_task.py's generalization_check),
+# not here -- inject_problem()'s TASK_PAIRS-lookup default (0 for any call not in TASK_PAIRS) was
+# silently leaking a wrong target into the substrate's internal dynamics during every held-out
+# probe. No engine-level flag needed; see that script for the fix.
+
+# BUG8: the de-immunization check `consolidation_streak <= -60` was unreachable because the decay
+# branch floored the streak at 0 (`max(0, ... - 1)`), so it could never go negative. Real fix:
+# remove the floor on the DECAY path only (the GROWTH path still requires a real positive streak
+# to re-earn immunity, unaffected) so sustained poor performance can actually revoke protection.
+BUG8_IMMUNITY_REVOCABLE = True
+
 GROWTH_FACTOR = 1.25
 MAX_CULL_FRAC_CFG = 0.20       # cull at most this fraction of worst cells per sleep (LOWER = punish LESS)
 ALIVE_FLOOR_FRAC_CFG = 0.60    # never cull below this fraction of population (RAISE = punish LESS)
@@ -578,7 +683,14 @@ class SovereignCore:
         self.context_capacity = CONTEXT_CAPACITY
         self.context_triggered_sleep = False
         self.is_sleeping = False
-        
+
+        # BUG6 FIX: real pending-delivery queue so relay.back_delay/base_delay actually delay
+        # signal arrival, instead of being evolved, inherited, mutated numbers with zero effect
+        # (Brick.receive() never used its own `delay` argument). Entries: (deliver_at_cycle,
+        # target_brick_id, signal, src_id). Flushed once per cycle in run_cycle(), before that
+        # cycle's own _update_bricks()/_fire_relays() pass.
+        self._pending_deliveries = []
+
         self.bricks: List[Brick] = []
         self.brick_lookup: Dict[int, Brick] = {}
         self._max_id_tracker = 0
@@ -863,8 +975,20 @@ class SovereignCore:
             b.last_call = call
             b.mem_acc += float(call[-1])
             b.think_acc += float(call[-2])
-            for elem in call:
-                b.receive(float(elem), src_id=-1, delay=0)
+            # BUG2 FIX: this loop used to call b.receive(float(elem), ...) for every element with
+            # no positional information at all -- receive() only accumulates additively, and
+            # addition is commutative, so any two calls sharing the same multiset of values (in
+            # any order) injected IDENTICAL signal here. Only call[-1]/call[-2] (above) carried any
+            # position. For a 16-element context, 14 of 16 positions collapsed into one order-blind
+            # sum -- the direct, mechanistic cause of the 99.8% response-collision rate measured by
+            # sc_collision_probe.py. Fix: add a small position-dependent term so even a repeated or
+            # zero-valued element contributes differently depending on where it sits in the call --
+            # purely additive (not multiplicative), so it still works when elem==0.
+            for i, elem in enumerate(call):
+                positional_signal = float(elem)
+                if BUG2_POSITION_AWARE_ENCODING:
+                    positional_signal += POSITION_WEIGHT_SCALE * i
+                b.receive(positional_signal, src_id=-1, delay=0)
 
         # 🧠 RECOGNITION: every cell computes how well THIS call matches its stored prototype.
         call_vec = [float(x) for x in call]
@@ -943,8 +1067,15 @@ class SovereignCore:
                     b.mem = int(b._seed_answer); b.think = int(b._seed_answer)
                 continue                              # ROM weights frozen, but it DID get its firing decision
             zone_cfg = ZONE_PARAMS[b.zone]
-            b.commit_accumulators(zone_cfg)
-            b.update_prediction_error(tgt if tgt is not None else b.mem)
+            # BUG5 FIX: a "frozen" teaching brick had its mem/think pinned to _teach_answer above,
+            # but commit_accumulators()/update_prediction_error() ran unconditionally right after
+            # and could immediately change b.mem again the same cycle -- so the "frozen" snapshot
+            # could still drift, and the drifted value became the new _teach_answer at the bottom
+            # of this loop. A genuinely frozen teacher holds a stable target for its whole window.
+            is_teaching = BUG5_TRUE_FROZEN_TEACHER and getattr(b, "teach_freeze", 0) > 0
+            if not is_teaching:
+                b.commit_accumulators(zone_cfg)
+                b.update_prediction_error(tgt if tgt is not None else b.mem)
             b.age += 1
             b.energy = min(30.0, b.energy + 0.25)
 
@@ -964,9 +1095,19 @@ class SovereignCore:
                     b.teach_freeze = TEACH_FREEZE_WINDOW
                     print(f" 🛡️ IMMUNE+TEACH (stable teacher {TEACH_FREEZE_WINDOW}c, then plastic): Brick {b.id} zone={b.zone} score={b.recent_task_score:.2f}")
             else:
-                b.consolidation_streak = max(0, getattr(b, "consolidation_streak", 0) - 1)
+                # BUG8 FIX: the old floor (max(0, ...)) made the `<= -60` check below unreachable
+                # -- immunity was permanent once granted. Floor only applies when immunity isn't
+                # being tracked for revocation (keeps a non-immune brick's streak from drifting
+                # arbitrarily negative for no reason); once immune, let it go negative so sustained
+                # poor performance can actually revoke protection.
+                prev_streak = getattr(b, "consolidation_streak", 0)
+                if BUG8_IMMUNITY_REVOCABLE and getattr(b, "cull_immune", False):
+                    b.consolidation_streak = prev_streak - 1
+                else:
+                    b.consolidation_streak = max(0, prev_streak - 1)
                 if getattr(b, "cull_immune", False) and b.recent_task_score < 0.40 and b.consolidation_streak <= -60:
                     b.cull_immune = False
+                    print(f" 🔓 IMMUNITY REVOKED: Brick {b.id} zone={b.zone} score={b.recent_task_score:.2f} (sustained poor performance)")
             # tick down the teaching-freeze window; while frozen, hold weights stable (clean teacher)
             if getattr(b, "teach_freeze", 0) > 0:
                 b.teach_freeze -= 1
@@ -994,6 +1135,15 @@ class SovereignCore:
              echo that explodes). Sister, not source, is the whole difference between explode and clean."""
         for b in self.bricks:
             if not b.alive or b.relay_strength < 10: continue
+            # BUG1 FIX: relay transmission used to be gated only on alive/relay_strength/phase --
+            # never on whether the source brick actually fired in response to the current input,
+            # completely decoupled from the engine's own "SPEAK-ONLY-WHEN-SPOKEN-TO" firing gate
+            # (_update_bricks sets fired_this_cycle; _read_response already respects it, this
+            # function never did). A relay could keep transmitting every cycle off persistent
+            # internal state alone, regardless of whether the current input caused any firing --
+            # a real candidate cause of attractor clustering independent of IMMUNE+TEACH.
+            if BUG1_RELAY_REQUIRES_FIRING and not b.fired_this_cycle:
+                continue
             for relay in b.relays:
                 relay.tick()
                 brick_phase = (self.current_time * 0.1) % (2 * math.pi)
@@ -1041,13 +1191,40 @@ class SovereignCore:
                         for sis in chosen:
                             # forward-going imitation signal to the sister, delayed (temporal spread).
                             # the sister learns the pattern secondhand; the big signal is dispersed, not looped.
-                            sis.receive(sister_amount, src_id=b.id, delay=relay.back_delay)
+                            self._deliver(sis, sister_amount, src_id=b.id, delay=relay.back_delay)
 
                 # forward distribution (normal), with whatever remains after a split
                 for t_id in relay.targets:
                     target = self.brick_lookup.get(t_id)
                     if target and target.alive:
-                        target.receive(fwd_signal, src_id=b.id, delay=relay.base_delay)
+                        self._deliver(target, fwd_signal, src_id=b.id, delay=relay.base_delay)
+
+    def _deliver(self, target, signal: float, src_id: int, delay: int):
+        """BUG6 FIX: Brick.receive() never used its own `delay` argument -- every signal applied
+        synchronously regardless of the evolved back_delay/base_delay relay traits, which had zero
+        real effect on timing. Real delayed delivery: delay<=0 (or the fix disabled) applies
+        immediately as before; delay>0 enqueues onto self._pending_deliveries, flushed once per
+        cycle in run_cycle() when delivery_cycle has arrived."""
+        if not BUG6_REAL_SIGNAL_DELAY or delay <= 0:
+            target.receive(signal, src_id=src_id, delay=delay)
+            return
+        self._pending_deliveries.append((self.current_time + delay, target.id, signal, src_id))
+
+    def _flush_pending_deliveries(self):
+        """Apply any queued relay signals whose delay has elapsed, before this cycle's own
+        update/fire pass runs -- so a delayed signal actually arrives on a LATER cycle, not the
+        same one it was sent on."""
+        if not self._pending_deliveries:
+            return
+        still_pending = []
+        for deliver_at, target_id, signal, src_id in self._pending_deliveries:
+            if deliver_at <= self.current_time:
+                target = self.brick_lookup.get(target_id)
+                if target and target.alive:
+                    target.receive(signal, src_id=src_id, delay=0)
+            else:
+                still_pending.append((deliver_at, target_id, signal, src_id))
+        self._pending_deliveries = still_pending
 
     def _evaluate_fitness(self):
         """⚖️ WHOLE-ORGANISM CORRECTNESS drives selection (the anti-cancer / anti-moss leash).
@@ -1070,9 +1247,23 @@ class SovereignCore:
         else:
             whole_correct = 0.5
         # track improvement (did the whole get MORE correct than last trial?) for split-credit
-        prev = getattr(self, "_prev_whole_correct", 0.5)
-        improved = whole_correct > prev
-        self._prev_whole_correct = whole_correct
+        # BUG4 FIX: this used to compare against a single GLOBAL previous score, even though
+        # consecutive cycles under interleaved training can present completely different, unrelated
+        # task pairs -- a relay could earn split_helped credit merely because a DIFFERENT, easier
+        # task happened to score higher right after it split, not because its own split caused
+        # anything. Track the previous score PER TASK (keyed by the call) so "improved" means
+        # "this same task scored better than the last time it was presented," not "some task did."
+        if BUG4_PER_TASK_IMPROVEMENT_TRACKING and self.current_call is not None:
+            if not hasattr(self, "_prev_whole_correct_by_task"):
+                self._prev_whole_correct_by_task = {}
+            task_key = tuple(self.current_call)
+            prev = self._prev_whole_correct_by_task.get(task_key, 0.5)
+            improved = whole_correct > prev
+            self._prev_whole_correct_by_task[task_key] = whole_correct
+        else:
+            prev = getattr(self, "_prev_whole_correct", 0.5)
+            improved = whole_correct > prev
+            self._prev_whole_correct = whole_correct
         # windowed average so telemetry reflects the TRUE rate, not one unlucky instantaneous sample
         if not hasattr(self, "_wc_window"): self._wc_window = []
         self._wc_window.append(whole_correct)
@@ -1173,9 +1364,19 @@ class SovereignCore:
                 if dist < RBF_SIGMA:                      # this cell RECOGNIZES the current call
                     recognizes_now = True
                     ans_err = abs(b.proto_answer - float(self.current_target))
-                    if ans_err < 1.5:
+                    # BUG3 FIX: these margins directly feed recent_task_score, which is the ONLY
+                    # gate for IMMUNE+TEACH promotion -- a brick that's meaningfully wrong (e.g.
+                    # off by 1 of only 2 possible binary targets 0/31) used to still earn full or
+                    # half "recognized correctly" credit toward becoming a protected, broadcast
+                    # teacher. Tightened specifically for teacher-eligibility; the separate
+                    # whole_correct graded-closeness term used for ordinary evolutionary fitness
+                    # selection is untouched -- partial-credit fitness shaping is a different,
+                    # more defensible use than "is this cell trustworthy enough to teach others."
+                    full_margin = TEACHER_REWARD_FULL_MARGIN if BUG3_STRICT_TEACHER_REWARD else 1.5
+                    half_margin = TEACHER_REWARD_HALF_MARGIN if BUG3_STRICT_TEACHER_REWARD else 3.0
+                    if ans_err < full_margin:
                         recog_reward = 1.0
-                    elif ans_err < 3.0:
+                    elif ans_err < half_margin:
                         recog_reward = 0.5
             if recognizes_now:
                 # this cell was ASKED -> update strongly toward its performance (reward or miss)
@@ -1674,6 +1875,7 @@ class SovereignCore:
     def run_cycle(self):
         """🔄 Main execution loop: inject → update → fire → evaluate → mutate → sleep check."""
         self.current_time += 1
+        self._flush_pending_deliveries()  # BUG6 FIX: apply any relay signals whose delay matured
         problems = ["interception", "noise", "memory", "pattern", "cross_module"]
         p_type = problems[self.current_time % len(problems)]
         self.inject_problem(p_type, signal=random.uniform(0.5, 2.5))
