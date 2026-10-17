@@ -1686,6 +1686,19 @@ class SovereignCore:
                   f" | {getattr(self,'_cps',0):.0f}cyc/s")
             if self.current_time % 500 == 0:
                 # 🔍 SHOW ACTUAL ANSWERS: probe each task pair, print call -> answer -> correct
+                # 2026-10-16, REAL BUG FOUND AND FIXED (traced via direct per-cycle instrumentation
+                # after Jonathan's own instinct that the oscillation "wasn't random in its
+                # randomness"): this diagnostic probes EVERY task pair via inject_problem(), which
+                # unconditionally increments context_tokens -- WITHOUT restoring it afterward. For
+                # any task with more than a handful of pairs, this silently added len(TASK_PAIRS)
+                # extra context_tokens every single time this debug print fired (confirmed via
+                # direct trace: context_tokens jumped 499->1350, delta=+851, in ONE cycle, for an
+                # 850-pair task) -- easily enough to push it over CONTEXT_THRESHOLD and force an
+                # extra, unintended sleep-consolidation event immediately after, EVERY 500 cycles,
+                # regardless of real training-driven context load. This diagnostic print was
+                # silently distorting the real sleep cadence for as long as it's been in the file.
+                # Snapshot/restore makes it truly read-only, matching normal measurement discipline.
+                saved_context_tokens = self.context_tokens
                 samples = []
                 for (call, correct) in self.TASK_PAIRS:
                     self.inject_problem("probe", 1.0, forced_call=call)
@@ -1695,6 +1708,7 @@ class SovereignCore:
                     mark = "✓" if (ans is not None and abs(ans - correct) < 1.0) else " "
                     samples.append(f"{call}->{astr}(want {correct}){mark}")
                 print("    🔍 " + " | ".join(samples))
+                self.context_tokens = saved_context_tokens
 
     def save_checkpoint(self):
         """💾 Serialize full substrate state to JSON. Atomic write survives hard kills."""
