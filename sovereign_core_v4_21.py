@@ -72,6 +72,13 @@ MAX_SYNAPSES_PER_BRICK = 24
 # 🧠 Context capacity & sleep trigger
 CONTEXT_CAPACITY = 1000
 CONTEXT_THRESHOLD = 0.85       # sleep fires at this context-load fraction (RAISE = sleep LESS OFTEN)
+
+# 🔍 2026-10-17: see sovereign_core.py (v4.3 lineage) for the full writeup -- the %500 debug
+# probe below calls _update_bricks()/_fire_relays() once per TASK_PAIR, which is real training
+# machinery (not a passive read), confirmed via a ~18-25x spike in the `splits` counter every
+# time it fires on a large-TASK_PAIRS task. Disabled by default; this working-copy-only patch
+# does NOT touch the preserved historical original at D:\flybrain\Max_sovereign_core_v4_21.py.
+DIAGNOSTIC_PROBE_ENABLED = False
 GROWTH_FACTOR = 1.25
 MAX_CULL_FRAC_CFG = 0.20       # cull at most this fraction of worst cells per sleep (LOWER = punish LESS)
 ALIVE_FLOOR_FRAC_CFG = 0.60    # never cull below this fraction of population (RAISE = punish LESS)
@@ -1125,8 +1132,10 @@ class SovereignCore:
                   f" | 🍼TaskCorrect:{wc:.3f} | split_thr:{avg_thr:.2f} ratio:{avg_ratio:.2f} splits:{n_splits}"
                   f" | Ctx:{self.context_tokens}/{self.context_capacity}"
                   f" | {getattr(self,'_cps',0):.0f}cyc/s")
-            if self.current_time % 500 == 0:
+            if self.current_time % 500 == 0 and DIAGNOSTIC_PROBE_ENABLED:
                 # 🔍 SHOW ACTUAL ANSWERS: probe each task pair, print call -> answer -> correct
+                # Disabled by default -- see DIAGNOSTIC_PROBE_ENABLED's comment above.
+                saved_context_tokens = self.context_tokens
                 samples = []
                 for (call, correct) in self.TASK_PAIRS:
                     self.inject_problem("probe", 1.0, forced_call=call)
@@ -1136,6 +1145,7 @@ class SovereignCore:
                     mark = "✓" if (ans is not None and abs(ans - correct) < 1.0) else " "
                     samples.append(f"{call}->{astr}(want {correct}){mark}")
                 print("    🔍 " + " | ".join(samples))
+                self.context_tokens = saved_context_tokens
 
     def save_checkpoint(self):
         """💾 Serialize full substrate state to JSON. Atomic write survives hard kills."""

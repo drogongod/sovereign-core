@@ -13,7 +13,7 @@ tasks specifically -- a real, different, answerable question, per Jonathan's own
 success here could mean this substrate is suited to bit/numeric-level modeling, not character-
 level language modeling.
 """
-import sys, os, argparse, random
+import sys, os, argparse, random, copy
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sovereign_core as sc
 
@@ -24,14 +24,28 @@ class OriginalTaskCore(sc.SovereignCore):
     # TASK_PAIRS deliberately NOT overridden -- this is the real, original, built-in task.
 
     def exact_match_accuracy(self):
+        # 2026-10-17, REAL FIX (the diagnostic-probe bug class, second instance -- found after
+        # the engine's own %500 probe was fixed and Jonathan + an independent model both flagged
+        # that _update_bricks()/_fire_relays() are NOT passive reads): this method called those
+        # same two real-training functions once per probed pair, on `self` -- directly mutating
+        # brick energy/refractory/commit_accumulators/prediction-error/IMMUNE+TEACH-eligibility
+        # and relay split/usage counters + delivering real signal to sister cells, every single
+        # evaluation. context_tokens snapshot/restore (the earlier fix) never touched any of
+        # this. REAL fix: run the probe on a throwaway deep-copy of the whole substrate, so
+        # nothing it does can touch the real run; and save/restore the GLOBAL random state around
+        # it too, so the probe doesn't even perturb which pseudo-random draws come next in the
+        # real run. This is now a true measurement -- zero effect on `self`, by construction.
+        saved_random_state = random.getstate()
+        clone = copy.deepcopy(self)
         correct = 0
-        for call, target in self.TASK_PAIRS:
-            self.inject_problem("probe", 1.0, forced_call=list(call))
-            self._update_bricks()
-            self._fire_relays()
-            resp = self._read_response()
+        for call, target in clone.TASK_PAIRS:
+            clone.inject_problem("probe", 1.0, forced_call=list(call))
+            clone._update_bricks()
+            clone._fire_relays()
+            resp = clone._read_response()
             if resp is not None and round(resp) == target:
                 correct += 1
+        random.setstate(saved_random_state)
         return correct, len(self.TASK_PAIRS)
 
     def generalization_check(self):

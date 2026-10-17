@@ -234,6 +234,21 @@ MAX_SYNAPSES_PER_BRICK = 24
 # 🧠 Context capacity & sleep trigger
 CONTEXT_CAPACITY = 1000
 CONTEXT_THRESHOLD = 0.85       # sleep fires at this context-load fraction (RAISE = sleep LESS OFTEN)
+
+# 🔍 2026-10-17: the %500 "SHOW ACTUAL ANSWERS" debug probe in run_cycle() calls _update_bricks()
+# and _fire_relays() once per TASK_PAIR -- those are NOT passive reads, they are the real training
+# machinery (commit_accumulators, prediction-error update, IMMUNE+TEACH promotion, relay split/
+# usage counters, real signal delivery to sister cells via .receive()). Confirmed directly: the
+# `splits` counter jumps by ~140,000-210,000 every time this probe fires on an 850-pair task,
+# vs. a steady ~8,000/100-cycles baseline everywhere else -- an 18-25x spike, not a passive read.
+# Earlier fix (context_tokens snapshot/restore) only stopped this probe from forcing premature
+# sleep; it never addressed this much larger disturbance, and the disturbance scales with
+# len(TASK_PAIRS) -- 6 for the numeric task, 850-905 for every language/bit task -- so it was
+# never an equal, controlled confound across configs. DIAGNOSTIC_PROBE_ENABLED=False makes every
+# controlled experiment run with this probe fully disabled (not merely restored); flip to True
+# only for interactive/manual debugging where seeing live sample answers matters more than a
+# clean measurement.
+DIAGNOSTIC_PROBE_ENABLED = False
 GROWTH_FACTOR = 1.25
 MAX_CULL_FRAC_CFG = 0.20       # cull at most this fraction of worst cells per sleep (LOWER = punish LESS)
 ALIVE_FLOOR_FRAC_CFG = 0.60    # never cull below this fraction of population (RAISE = punish LESS)
@@ -1684,20 +1699,12 @@ class SovereignCore:
                   f" | 🍼TaskCorrect:{wc:.3f} | split_thr:{avg_thr:.2f} ratio:{avg_ratio:.2f} splits:{n_splits}"
                   f" | Ctx:{self.context_tokens}/{self.context_capacity}"
                   f" | {getattr(self,'_cps',0):.0f}cyc/s")
-            if self.current_time % 500 == 0:
+            if self.current_time % 500 == 0 and DIAGNOSTIC_PROBE_ENABLED:
                 # 🔍 SHOW ACTUAL ANSWERS: probe each task pair, print call -> answer -> correct
-                # 2026-10-16, REAL BUG FOUND AND FIXED (traced via direct per-cycle instrumentation
-                # after Jonathan's own instinct that the oscillation "wasn't random in its
-                # randomness"): this diagnostic probes EVERY task pair via inject_problem(), which
-                # unconditionally increments context_tokens -- WITHOUT restoring it afterward. For
-                # any task with more than a handful of pairs, this silently added len(TASK_PAIRS)
-                # extra context_tokens every single time this debug print fired (confirmed via
-                # direct trace: context_tokens jumped 499->1350, delta=+851, in ONE cycle, for an
-                # 850-pair task) -- easily enough to push it over CONTEXT_THRESHOLD and force an
-                # extra, unintended sleep-consolidation event immediately after, EVERY 500 cycles,
-                # regardless of real training-driven context load. This diagnostic print was
-                # silently distorting the real sleep cadence for as long as it's been in the file.
-                # Snapshot/restore makes it truly read-only, matching normal measurement discipline.
+                # 2026-10-16/17: this probe calls _update_bricks()/_fire_relays() once per
+                # TASK_PAIR -- real training machinery, not a passive read (see
+                # DIAGNOSTIC_PROBE_ENABLED's comment above for the measured disturbance). Disabled
+                # by default; only runs when DIAGNOSTIC_PROBE_ENABLED is explicitly set True.
                 saved_context_tokens = self.context_tokens
                 samples = []
                 for (call, correct) in self.TASK_PAIRS:

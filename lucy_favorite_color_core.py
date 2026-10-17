@@ -20,7 +20,7 @@ the byte vocabulary <= STATE_MAX+1=32 (SovereignCore's real, hard dynamic-range 
 unlike Mamba's 256-byte vocabulary, every observable brick state here is a strict integer
 [0, 31], so the vocabulary itself has to fit, not just be mapped into it).
 """
-import sys, os, argparse, random
+import sys, os, argparse, random, copy
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sovereign_core as sc
 
@@ -107,16 +107,29 @@ class LucyFavoriteColorCore(sc.SovereignCore):
 
     def exact_match_accuracy(self, n_probe=None):
         """Same discipline as the whole night's work: exact match, not the substrate's own
-        graded partial-credit scoring (meaningless for arbitrary character indices)."""
+        graded partial-credit scoring (meaningless for arbitrary character indices).
+
+        2026-10-17, REAL FIX (second instance of the diagnostic-probe bug class -- the engine's
+        own %500 probe was fixed first; Jonathan + an independent model both then flagged that
+        _update_bricks()/_fire_relays() are real training machinery, not passive reads, and this
+        method has the exact same disease): directly confirmed via the `splits` counter spiking
+        9.5x across an eval checkpoint even with the engine's internal diagnostic fully disabled
+        -- this method's own calls to those two functions on `self` were the cause. REAL fix:
+        run the probe on a throwaway deep-copy of the whole substrate (zero effect on `self` by
+        construction), and save/restore the GLOBAL random state too, so evaluation doesn't even
+        change which pseudo-random draws come next in the real run."""
         pairs = self.TASK_PAIRS if n_probe is None else self.TASK_PAIRS[:n_probe]
+        saved_random_state = random.getstate()
+        clone = copy.deepcopy(self)
         correct = 0
         for call, target in pairs:
-            self.inject_problem("probe", 1.0, forced_call=list(call))
-            self._update_bricks()
-            self._fire_relays()
-            resp = self._read_response()
+            clone.inject_problem("probe", 1.0, forced_call=list(call))
+            clone._update_bricks()
+            clone._fire_relays()
+            resp = clone._read_response()
             if resp is not None and round(resp) == target:
                 correct += 1
+        random.setstate(saved_random_state)
         return correct, len(pairs)
 
 

@@ -9,7 +9,7 @@ of only ever cloning from whichever bricks currently survive. Same favorite-colo
 context_len=10 fix as v3 (wider context, removes the structural ambiguity bug), for direct
 comparison against the v4.3 results already recorded.
 """
-import sys, os, argparse, random
+import sys, os, argparse, random, copy
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sovereign_core_v4_21 as sc
 
@@ -61,15 +61,22 @@ class LucyV421Core(sc.SovereignCore):
     TASK_PAIRS = TASK_PAIRS_RAW
 
     def exact_match_accuracy(self, n_probe=None):
+        # 2026-10-17, REAL FIX -- see lucy_favorite_color_core.py for the full writeup: this
+        # method called _update_bricks()/_fire_relays() on `self`, real training machinery not
+        # passive reads. Runs the probe on a throwaway deep-copy instead (zero effect on `self`),
+        # and restores the global random state too.
         pairs = self.TASK_PAIRS if n_probe is None else self.TASK_PAIRS[:n_probe]
+        saved_random_state = random.getstate()
+        clone = copy.deepcopy(self)
         correct = 0
         for call, target in pairs:
-            self.inject_problem("probe", 1.0, forced_call=list(call))
-            self._update_bricks()
-            self._fire_relays()
-            resp = self._read_response()
+            clone.inject_problem("probe", 1.0, forced_call=list(call))
+            clone._update_bricks()
+            clone._fire_relays()
+            resp = clone._read_response()
             if resp is not None and round(resp) == target:
                 correct += 1
+        random.setstate(saved_random_state)
         return correct, len(pairs)
 
 
