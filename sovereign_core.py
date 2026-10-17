@@ -97,6 +97,37 @@ WOLFPACK_GRAFT_ALPHA = 0.15    # how strongly a graft nudges the healthy match's
 WOLFPACK_MATCH_RADIUS = 10.0   # max prototype-space distance to accept a graft target; beyond this,
 # nothing living resembles the sick brick closely enough to be worth reinforcing -- reset only.
 
+# 🐺🚫 WOLFPACK REPULSION (2026-10-17) -- Jonathan's own correction to WOLFPACK_SISTER_MATCH above:
+# the 2026-10-01 "like-to-like" version (pull similar prototypes together) is confirmed, by his own
+# account, to be the wrong direction -- "I switched wolf pack because it failed like to like, and
+# made it reverse achieving same thing, pushing dislikes apart... created an approximation effect."
+# The reverse needs no expensive search for the single best match; it just has to notice when two
+# ALREADY-local candidates are confusably close in representation space despite disagreeing on the
+# answer, and push them apart -- clustering of genuinely similar/agreeing prototypes is the emergent
+# side effect of that alone, not a second force (see the trigger-condition comment at the call site
+# in _fire_relays for the exact rule and why). Default False -- new, untested mechanism; flip True
+# for a direct A/B against the collision-probe / bit-level exact-match numbers before considering it
+# a default. See sc_collision_probe.py for the diagnostic this is meant to move.
+WOLFPACK_REPULSION_ENABLED = False
+WOLFPACK_REPULSION_THRESHOLD = 10.0   # same scale as WOLFPACK_MATCH_RADIUS -- "close enough to risk
+# being confused for the same thought" is the same real distance either direction should care about.
+WOLFPACK_REPULSION_ANSWER_MARGIN = 1.5   # proto_answers within this are "agreeing" (leave alone);
+# matches the ans_err full-credit margin used elsewhere for "this cell's answer counts as right."
+WOLFPACK_REPULSION_RATE = 0.15   # how strongly a single repulsion event pushes apart -- matches
+# WOLFPACK_GRAFT_ALPHA's scale (small, incremental, "sloppy cheap constant" philosophy, not a
+# single large corrective jump) since this is the same file's established design discipline.
+
+# 🦔 LATERAL INHIBITION (2026-10-17) -- Jonathan's own simplification of WOLFPACK_REPULSION above:
+# "the mechanism I just feel should be simpler than I been trying to build." Real nervous systems
+# get the same "push distinct things apart, let similar things cluster" effect from one of the
+# simplest, most common real circuit motifs: a firing neuron directly suppresses its immediate
+# neighbors, no comparison of what either one represents required. Implemented as a per-BRICK
+# evolvable trait (Brick.inhibition_strength, same pattern as fire_threshold) with NO other tunable
+# constant here on purpose -- "structure is ours to design, simple, local; the parameters are never
+# ours to pick." Default False -- new, untested mechanism; A/B against WOLFPACK_REPULSION_ENABLED
+# and the clean baseline before considering either a default.
+LATERAL_INHIBITION_ENABLED = False
+
 # 🐺🔬 WOLFPACK LSL GATE (2026-10-08, Jonathan: "LSL might have some clues to fix my wolf pack") --
 # replaces WOLFPACK_MATCH_RADIUS's single fixed global distance with a density-based accept/reject
 # test, adapted from Local Support Learning (arXiv:2610.02126, verified real this session, see
@@ -571,6 +602,19 @@ class Brick:
         self.match_weight = 0.0           # how well the CURRENT call matches this cell's prototype (set each cycle)
         self.fire_threshold = random.uniform(0.3, 1.5)   # evolvable cost-gate to speak
         self.refractory = 0               # cycles of forced silence remaining after firing
+        # 🦔 LATERAL INHIBITION (2026-10-17, Jonathan's own correction to the prototype-distance
+        # repulsion tried earlier the same night -- "the mechanism I just feel should be simpler
+        # than I been trying to build"): the real biological mechanism for "push dissimilar things
+        # apart, let similar things cluster as the side effect" isn't vector-distance comparison --
+        # it's lateral inhibition, one of the simplest, most common real circuit motifs: when I
+        # fire, I suppress my immediate neighbors' ability to also fire. No prototype math, no
+        # distance threshold, no comparing answers. A brick doesn't need to know WHAT it or its
+        # neighbor represents for this to work. Evolvable, same pattern as fire_threshold right
+        # above it -- "structure is ours to design, simple, local; the parameters are never ours to
+        # pick" (Jonathan's own framing, after noticing WOLFPACK_REPULSION_RATE/THRESHOLD were
+        # fixed global constants I'd hand-picked, unlike every other real trait in this file).
+        self.inhibition_strength = random.uniform(0.0, 1.0)   # how hard MY firing suppresses
+        # local competitors -- 0 = no inhibitory effect at all, 1 = maximal
         self.think_acc = 0.0
         self.relay_acc = 0.0
         
@@ -1133,6 +1177,27 @@ class SovereignCore:
             elif getattr(b, "cull_immune", False):
                 b.plasticity = max(0.4, b.plasticity)   # released back to plastic (not a millstone)
 
+    def _apply_lateral_inhibition(self):
+        """🦔 A brick that fired this cycle suppresses its same-module neighbors' ability to also
+        fire soon -- no prototype comparison, no distance math, just "I spoke, so my neighbors stay
+        quiet a little longer." Runs after firing decisions are made (_update_bricks), so it only
+        affects FUTURE cycles' competitiveness, never undoes this cycle's already-resolved outcome.
+        The only tunable number is each brick's own evolved inhibition_strength -- nothing here is
+        hand-picked."""
+        if not LATERAL_INHIBITION_ENABLED:
+            return
+        by_module = defaultdict(list)
+        for b in self.bricks:
+            if b.alive:
+                by_module[b.module_id].append(b)
+        for b in self.bricks:
+            if not b.alive or not b.fired_this_cycle or b.inhibition_strength <= 0:
+                continue
+            for s in by_module[b.module_id]:
+                if s.id == b.id or s.fired_this_cycle:
+                    continue
+                s.refractory += b.inhibition_strength
+
     def _fire_relays(self):
         """📡 Paired relay routing, phase-gated, delay-aware, WITH the SISTER-CELL SPLIT (v4.5).
         🧬 SISTER-SPLIT (the unified relay-split mechanism -- stability + imitation + clean boomerang):
@@ -1205,6 +1270,59 @@ class SovereignCore:
                                 chosen = proto_sisters[:min(2, len(proto_sisters))]
                         if chosen is None:
                             chosen = random.sample(sisters, k=min(2, len(sisters)))
+
+                        # 🐺🚫 WOLFPACK REPULSION (2026-10-17, Jonathan's own correction to the
+                        # 2026-10-01 "like-to-like" Wolfpack, which never worked): the original
+                        # like-to-like version had to SEARCH the local sister pool for the closest
+                        # prototype match -- real work, every split, every cycle. The reverse is
+                        # cheaper and, per Jonathan, was the version that actually worked before:
+                        # no search needed at all. Walk the SAME already-computed local sister pool
+                        # (same module, never source, never a direct feeder -- already free). No
+                        # attraction step is added here on purpose -- pulling similar prototypes
+                        # together is NOT a new force this needs; it's the side effect of repulsion
+                        # alone (push away everything unlike a region, and whatever's left near it
+                        # has to be the similar stuff, by elimination), same logic as disk
+                        # defragmentation: no single local swap needs to know the final layout. The
+                        # existing EMA prototype-learning (PROTO_LEARN_RATE, in _evaluate_fitness)
+                        # already does the actual merging once repulsion clears the confusion out of
+                        # the way, and the existing sleep-consolidation cull already removes whatever
+                        # brick ends up with nothing distinct left to earn fitness with -- no new
+                        # "deletion" mechanism needed, both pieces already exist and are proven.
+                        #
+                        # Trigger condition, my own judgment call where Jonathan's memory of the
+                        # exact rule was genuinely uncertain ("open to suggestions"): two prototypes
+                        # are only pushed apart when they are CLOSE in representation space (within
+                        # WOLFPACK_REPULSION_THRESHOLD -- genuinely at risk of being confused) AND
+                        # their learned answers DISAGREE (different proto_answer). This targets the
+                        # exact, already-measured failure mode directly: sc_collision_probe.py found
+                        # 850 distinct bit-level contexts collapsing onto only 6 output values, with
+                        # most of those buckets mixing BOTH possible targets together -- i.e. close
+                        # prototypes that disagree on the answer. Two prototypes that are close AND
+                        # AGREE are left alone; that's correct convergence, not confusion, and
+                        # repelling it would actively undo real learning.
+                        if WOLFPACK_REPULSION_ENABLED and b.prototype is not None and b.proto_answer is not None:
+                            # 🔍 TEMPORARY DIAGNOSTIC COUNTERS (2026-10-17) -- checking whether this
+                            # mechanism is engaging at all before trusting a negative result. Remove
+                            # once the question is answered either way.
+                            if not hasattr(self, "_repulsion_stats"):
+                                self._repulsion_stats = {"gate_entered": 0, "no_sister_proto": 0,
+                                                          "agree_skip": 0, "too_far_skip": 0, "fired": 0}
+                            self._repulsion_stats["gate_entered"] += 1
+                            for s in sisters:
+                                if s.prototype is None or s.proto_answer is None:
+                                    self._repulsion_stats["no_sister_proto"] += 1
+                                    continue
+                                if abs(s.proto_answer - b.proto_answer) < WOLFPACK_REPULSION_ANSWER_MARGIN:
+                                    self._repulsion_stats["agree_skip"] += 1
+                                    continue  # they agree -- not confusion, leave it alone
+                                dist = math.sqrt(sum((p - q) ** 2 for p, q in zip(b.prototype, s.prototype)))
+                                if dist < WOLFPACK_REPULSION_THRESHOLD:
+                                    self._repulsion_stats["fired"] += 1
+                                    for i in range(len(s.prototype)):
+                                        push = WOLFPACK_REPULSION_RATE * (s.prototype[i] - b.prototype[i])
+                                        s.prototype[i] = max(STATE_MIN, min(STATE_MAX, s.prototype[i] + push))
+                                else:
+                                    self._repulsion_stats["too_far_skip"] += 1
                         for sis in chosen:
                             # forward-going imitation signal to the sister, delayed (temporal spread).
                             # the sister learns the pattern secondhand; the big signal is dispersed, not looped.
@@ -1441,6 +1559,10 @@ class SovereignCore:
             # 🔇 evolve the firing threshold (find the right 'how much before I speak' per cell)
             if random.random() < zone_cfg["mut"]:
                 b.fire_threshold = max(0.1, min(3.0, b.fire_threshold + random.uniform(-0.15, 0.15)))
+            # 🦔 evolve lateral-inhibition strength the same way -- work or die decides whether
+            # suppressing local competitors helps or hurts THIS brick's organism, nothing hand-tuned
+            if random.random() < zone_cfg["mut"]:
+                b.inhibition_strength = max(0.0, min(1.0, b.inhibition_strength + random.uniform(-0.15, 0.15)))
 
         module_zones = defaultdict(list)
         for b in self.bricks:
@@ -1655,6 +1777,7 @@ class SovereignCore:
             slot.mem_acc = 0.0; slot.think_acc = 0.0; slot.relay_acc = 0.0
             slot.zone = w.zone
             slot.fire_threshold = getattr(w, "fire_threshold", 1.0)
+            slot.inhibition_strength = getattr(w, "inhibition_strength", 0.5)
             slot.plasticity = 1.0
             slot.rom_locked = False
             # DISCOUNT+PROBATION FIX (2026-09-27): the discount itself is a deliberate, legitimate
@@ -1700,6 +1823,7 @@ class SovereignCore:
                 slot.mem_acc = 0.0; slot.think_acc = 0.0; slot.relay_acc = 0.0
                 slot.zone = w.zone
                 slot.fire_threshold = getattr(w, "fire_threshold", 1.0)
+                slot.inhibition_strength = getattr(w, "inhibition_strength", 0.5)
                 slot.plasticity = 1.0; slot.rom_locked = False
                 # Same discount+probation and relay-inheritance fix as the swap path above -- this is
                 # the SAME "clone a winner" operation, on dead capacity instead of a culled slot.
@@ -1898,6 +2022,7 @@ class SovereignCore:
         self.inject_problem(p_type, signal=random.uniform(0.5, 2.5))
 
         self._update_bricks()
+        self._apply_lateral_inhibition()
         self._fire_relays()
         self._evaluate_fitness()
         self._mutate_and_select()
