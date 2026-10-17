@@ -1100,12 +1100,29 @@ class SovereignCore:
                 # being tracked for revocation (keeps a non-immune brick's streak from drifting
                 # arbitrarily negative for no reason); once immune, let it go negative so sustained
                 # poor performance can actually revoke protection.
+                #
+                # ⚠️ CORRECTION, same night, found via the bit-level rerun: `cull_immune=True` is
+                # granted by FOUR different code paths, not just IMMUNE+TEACH promotion here --
+                # three others (freshly-resurrected seedlings, probation-discounted clones, dead-
+                # capacity replacement clones) are the ALREADY-PROVEN, already-A/B-tested
+                # PROBATION_CYCLES mechanism (see its own module-level comment: "425=harm, 850=good,
+                # 1700=no better... never shave it down"), with its OWN separate, correct expiry in
+                # _expire_probation() keyed on a real cycle deadline, not a recent_task_score streak.
+                # Applying THIS revocation logic to those bricks too was stripping probation
+                # protection from brand-new, not-yet-adapted clones far too early (score<0.40 is
+                # near-guaranteed for a brick that's had no time to specialize yet) -- confirmed via
+                # the bit-level task's much higher resurrection/growth churn: 179 "revocations"
+                # fired against only 1 real IMMUNE+TEACH promotion the entire run. Scope this fix to
+                # IMMUNE+TEACH-granted immunity only; leave probationary bricks to their own
+                # mechanism entirely.
+                is_probationary = getattr(b, "probation", False)
                 prev_streak = getattr(b, "consolidation_streak", 0)
-                if BUG8_IMMUNITY_REVOCABLE and getattr(b, "cull_immune", False):
+                if BUG8_IMMUNITY_REVOCABLE and getattr(b, "cull_immune", False) and not is_probationary:
                     b.consolidation_streak = prev_streak - 1
                 else:
                     b.consolidation_streak = max(0, prev_streak - 1)
-                if getattr(b, "cull_immune", False) and b.recent_task_score < 0.40 and b.consolidation_streak <= -60:
+                if (not is_probationary and getattr(b, "cull_immune", False)
+                        and b.recent_task_score < 0.40 and b.consolidation_streak <= -60):
                     b.cull_immune = False
                     print(f" 🔓 IMMUNITY REVOKED: Brick {b.id} zone={b.zone} score={b.recent_task_score:.2f} (sustained poor performance)")
             # tick down the teaching-freeze window; while frozen, hold weights stable (clean teacher)
