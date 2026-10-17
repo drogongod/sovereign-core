@@ -249,6 +249,23 @@ CONTEXT_THRESHOLD = 0.85       # sleep fires at this context-load fraction (RAIS
 # only for interactive/manual debugging where seeing live sample answers matters more than a
 # clean measurement.
 DIAGNOSTIC_PROBE_ENABLED = False
+
+# 🧪 2026-10-17: A/B TOGGLE for the IMMUNE+TEACH ablation experiment, proposed convergently by
+# four independent models (ChatGPT, DeepSeek, Qwen, Gemini) given the clean post-fix numeric-task
+# results (TaskCorrect 0.67-0.89, exact-match peak 50%, generalization only 1/4=25%, outputs
+# cluster around a few memorized attractor values). Shared theory: a brick that gets lucky on a
+# few of only 6 training pairs crosses recent_task_score>0.85, earns permanent-feeling protected
+# "teacher" status (cull_immune=True) after only 40 cycles, then broadcasts its (memorized, not
+# general) answer as a stable target for neighbors to imitate -- actively crystallizing the
+# memorized attractors rather than letting evolution keep searching for something that
+# generalizes. Code-verified correction to the models' claims: immunity is NOT literally
+# permanent -- there's already a revocation path (cull_immune=False if recent_task_score<0.40 for
+# 60+ consecutive cycles) -- but all four models still flagged this mechanism as the most likely
+# culprit for the attractor-clustering/low-generalization pattern. Default True preserves the
+# exact historical/proven behavior (every result recorded in HANDOFF.md used this). Set False for
+# a clean ablation run: does held-out generalization (currently 1/4=25%) improve with teacher
+# promotion disabled entirely, same seed, same task, nothing else changed?
+IMMUNE_TEACH_ENABLED = True
 GROWTH_FACTOR = 1.25
 MAX_CULL_FRAC_CFG = 0.20       # cull at most this fraction of worst cells per sleep (LOWER = punish LESS)
 ALIVE_FLOOR_FRAC_CFG = 0.60    # never cull below this fraction of population (RAISE = punish LESS)
@@ -938,7 +955,7 @@ class SovereignCore:
             # 🛡️ SUCCESS -> IMMUNITY (not freezing). A sustained-correct cell becomes PROTECTED FROM
             # CULLING but stays READ-WRITE (plastic) -- it keeps turning with the flywheel, recording
             # ongoing learning. Immunity != frozen. (No ROM-lock on live learning cells.)
-            if b.recent_task_score > 0.85:
+            if b.recent_task_score > 0.85 and IMMUNE_TEACH_ENABLED:
                 b.consolidation_streak = getattr(b, "consolidation_streak", 0) + 1
                 if b.consolidation_streak >= 40 and not getattr(b, "cull_immune", False):
                     b.cull_immune = True            # earned immunity: sleep won't eat it (stays read-write)

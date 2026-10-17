@@ -80,7 +80,15 @@ def main():
     ap.add_argument("--init-bricks", type=int, default=sc.INIT_BRICKS)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--exact-check-every", type=int, default=500)
+    ap.add_argument("--disable-immune-teach", action="store_true",
+                     help="2026-10-17 ablation: disable IMMUNE+TEACH promotion entirely, to test "
+                          "the convergent hypothesis (ChatGPT/DeepSeek/Qwen/Gemini, given given "
+                          "identical cross-model review) that it crystallizes early memorized "
+                          "attractors and suppresses the exploration generalization needs.")
     args = ap.parse_args()
+    if args.disable_immune_teach:
+        sc.IMMUNE_TEACH_ENABLED = False
+    print(f"  IMMUNE_TEACH_ENABLED = {sc.IMMUNE_TEACH_ENABLED}")
 
     random.seed(args.seed)
     core = OriginalTaskCore(init_bricks=args.init_bricks)
