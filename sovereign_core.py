@@ -447,6 +447,22 @@ SEED_CRANK_PASSES = 50   # MINIMUM crank passes before even CHECKING for engine-
 ENGINE_CATCH_MIN_CELLS = 25   # this many NON-seed cells reliably correct => engine caught => crank may release
 TEACH_FREEZE_WINDOW = 30   # cycles a newly-consolidated cell stays a STABLE teacher, then returns to plastic
 RECOGNITION_MODE = "nearest"   # "graded" (RBF kernel, 1/distance) or "nearest" (closest prototype wins)
+# 🗳️➡️➕ READOUT_MODE, 2026-10-19: "vote" (default, unchanged) is the original hand-designed
+# weighted-AVERAGE readout -- num/den, confined to the convex combination of whatever the voting
+# bricks already report, no matter how the weights are chosen. "linear" is the first-class
+# alternative born from a long night of digging into why that ceiling exists: an UNCONSTRAINED
+# linear combination (sum of readout_weight*val, no normalization, negative weights allowed),
+# using a genuinely EVOLVABLE per-brick trait (Brick.readout_weight, mutated the same way as
+# fire_threshold/inhibition_strength -- "the parameters are never ours to pick"). Eight tests
+# tonight (see SovereignCore's HANDOFF.md, "FINDING #1 RESOLVED") proved this can only be tested
+# fairly as a properly integrated engine option, trained from scratch, never as a live override
+# bolted onto a running system -- a bolt-on override hijacks _evaluate_fitness()'s own training
+# signal (which reads _read_response() directly, every cycle) before the substitute readout's own
+# weights have had any chance to converge. This flag makes "linear" a real, equal alternative to
+# "vote" from cycle 1, so the WHOLE population evolves under it honestly, the same way
+# RECOGNITION_MODE's two real options always have.
+READOUT_MODE = "vote"          # "vote" (original weighted-average) or "linear" (unconstrained,
+                                 # evolvable combination weights)
 RBF_SIGMA = 6.0               # kernel width: how close counts as "recognized" (graded mode)
 PROTO_LEARN_RATE = 0.10       # EMA rate at which a cell's prototype moves toward calls it answers correctly
 
@@ -615,6 +631,13 @@ class Brick:
         # fixed global constants I'd hand-picked, unlike every other real trait in this file).
         self.inhibition_strength = random.uniform(0.0, 1.0)   # how hard MY firing suppresses
         # local competitors -- 0 = no inhibitory effect at all, 1 = maximal
+        # 🗳️➡️➕ READOUT_WEIGHT (2026-10-19, see READOUT_MODE above): this brick's own weight in
+        # the UNCONSTRAINED linear-combination readout ("linear" mode only -- "vote" mode ignores
+        # this entirely and keeps using stability*fitness, unchanged). Small random init, evolvable
+        # by mutation like every other real trait here, free to drift negative -- a brick that
+        # turns out to be anti-correlated with the right answer is exactly as useful as one that's
+        # positively correlated, once the combination rule isn't forced to be a simple average.
+        self.readout_weight = random.uniform(-0.5, 0.5)
         self.think_acc = 0.0
         self.relay_acc = 0.0
         
@@ -1059,6 +1082,22 @@ class SovereignCore:
                       and b.fired_this_cycle]
         if not out_bricks:
             return None                                         # nobody was spoken to -> no answer this cycle
+        # 🗳️➡️➕ READOUT_MODE="linear": the unconstrained-combination alternative (see the global
+        # flag's own comment above for the full "why"). Completely separate code path from "vote"
+        # below -- "vote" mode's behavior is byte-for-byte unchanged when this flag is at its
+        # default. No normalization by sum(weight), no positivity constraint -- readout_weight is
+        # a real evolvable trait (mutated in _mutate_and_select(), inherited on cloning), so this
+        # mode trains the SAME way everything else in this engine does: selection on a trait that
+        # actually varies, not a bolted-on learning rule layered on top of a running system.
+        if READOUT_MODE == "linear":
+            resp = 0.0
+            for b in out_bricks:
+                w = b.readout_weight
+                if b.id in self.seed_brick_ids:
+                    w = w * 50.0 if w != 0.0 else 50.0   # firmware still speaks loudest even here
+                val = b.proto_answer if (b.proto_answer is not None and b.prototype is not None) else b.predict_next()
+                resp += w * val
+            return resp
         # 🧠 RECOGNITION READOUT: cells vote weighted by how well they RECOGNIZE the current call.
         # graded = RBF match_weight (closer prototype = louder); nearest = only closest-prototype cell votes.
         recognizers = [b for b in out_bricks if b.prototype is not None]
@@ -1563,6 +1602,11 @@ class SovereignCore:
             # suppressing local competitors helps or hurts THIS brick's organism, nothing hand-tuned
             if random.random() < zone_cfg["mut"]:
                 b.inhibition_strength = max(0.0, min(1.0, b.inhibition_strength + random.uniform(-0.15, 0.15)))
+            # 🗳️➡️➕ evolve readout_weight the same way -- only matters under READOUT_MODE="linear",
+            # harmless dead weight under "vote", but mutated unconditionally so a mode switch mid-
+            # lineage never finds every brick frozen at its birth value with zero variation to select on.
+            if random.random() < zone_cfg["mut"]:
+                b.readout_weight = max(-5.0, min(5.0, b.readout_weight + random.uniform(-0.15, 0.15)))
 
         module_zones = defaultdict(list)
         for b in self.bricks:
@@ -1778,6 +1822,7 @@ class SovereignCore:
             slot.zone = w.zone
             slot.fire_threshold = getattr(w, "fire_threshold", 1.0)
             slot.inhibition_strength = getattr(w, "inhibition_strength", 0.5)
+            slot.readout_weight = getattr(w, "readout_weight", 0.0)
             slot.plasticity = 1.0
             slot.rom_locked = False
             # DISCOUNT+PROBATION FIX (2026-09-27): the discount itself is a deliberate, legitimate
@@ -1824,6 +1869,7 @@ class SovereignCore:
                 slot.zone = w.zone
                 slot.fire_threshold = getattr(w, "fire_threshold", 1.0)
                 slot.inhibition_strength = getattr(w, "inhibition_strength", 0.5)
+                slot.readout_weight = getattr(w, "readout_weight", 0.0)
                 slot.plasticity = 1.0; slot.rom_locked = False
                 # Same discount+probation and relay-inheritance fix as the swap path above -- this is
                 # the SAME "clone a winner" operation, on dead capacity instead of a culled slot.
