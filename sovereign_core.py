@@ -482,10 +482,20 @@ DENDRITIC_BRANCHES_ENABLED = False
 # ☄️ DISASTER_EVENTS, 2026-10-19: real historical precedent, not invented tonight -- found directly
 # in D:\THE_ARC\My classroom\evolution\quinary_lego.py: "COSMIC RADIATION -- 30% mutation every
 # 500 gens", a periodic, bounded mutation-rate spike to prevent the population from stabilizing
-# into stagnant local optima. Jonathan's own framing tonight: "random cosmic simulator disasters
-# and fake mass extinctions from simulated Ice Age... to prevent stabilization and stagnation."
-# Honest provenance note: the mutation-spike mechanism is directly confirmed in that recovered
-# file; the "mass extinction" extra-culling piece below is from tonight's verbal description only,
+# into stagnant local optima.
+# 🔑 CORRECTED FRAMING, same night, Jonathan's own direct correction -- read this before enabling:
+# "these disaster events were not supposed to be for the real final model, they were just the
+# engines to stop stagnation and speed up evolution to CREATE THE DESIGN for the final model."
+# This is a DISCOVERY-PHASE search tool, like unstable_pond/crocodile_mushroom_plant
+# (D:\THE_ARC\*_results\*.pkl) -- meant to run temporarily while SEARCHING for good structure,
+# then be switched OFF once that structure is found and hardened into the stable deployed engine.
+# It was never meant to run permanently in the real final model as an ongoing stagnation-prevention
+# feature -- that earlier framing (still partly below) was this engineer's own mistake, corrected
+# directly, not Jonathan's original intent. Default False already matches the correct usage
+# (the stable final model runs with this off); only enable it deliberately, for a bounded
+# discovery run, never as a permanent production setting.
+# Honest provenance note: the mutation-spike mechanism is directly confirmed in the recovered
+# file above; the "mass extinction" extra-culling piece below is from verbal description only,
 # not yet found in recovered code, so it's a SEPARATE flag/parameter, off by default even when
 # DISASTER_EVENTS_ENABLED is True, not bundled in as if equally verified.
 DISASTER_EVENTS_ENABLED = False
