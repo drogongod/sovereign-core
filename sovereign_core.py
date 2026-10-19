@@ -463,6 +463,36 @@ RECOGNITION_MODE = "nearest"   # "graded" (RBF kernel, 1/distance) or "nearest" 
 # RECOGNITION_MODE's two real options always have.
 READOUT_MODE = "vote"          # "vote" (original weighted-average) or "linear" (unconstrained,
                                  # evolvable combination weights)
+# 🌳 DENDRITIC_BRANCHES_ENABLED, 2026-10-19: capability-level answer to "dendritic computation"
+# (Jonathan's own framing -- NOT biomimicry, SovereignCore's OWN native mechanism for the same
+# CAPABILITY real dendrites provide: local, per-branch nonlinear gating BEFORE a cell's main
+# state integrates anything, so weak/uncorrelated inputs spread across branches don't quietly sum
+# into something real the way a flat accumulator always lets them). Default False -- receive()'s
+# existing pooled-accumulator behavior is byte-for-byte unchanged when this is off. When True,
+# each brick routes incoming signal into one of its own evolvable BRANCHES (see Brick.__init__)
+# instead of straight into mem_acc/think_acc/relay_acc; a branch only passes its accumulated
+# signal through to the soma if ITS OWN evolvable threshold is crossed, otherwise it's fully
+# gated to zero -- a real AND-type coincidence gate, achieved with the same "evolvable threshold,
+# structure is ours to design" pattern already used for fire_threshold/inhibition_strength, not
+# with simulated ion channels. See [[vampire_mamba_four_organic_mechanisms]] for the full design
+# rationale and why this is the right place to fix the linear-readout ceiling found earlier
+# tonight: a brick whose OWN output is already nonlinear changes what any downstream readout
+# (vote or linear) is combining, instead of patching the readout from outside.
+DENDRITIC_BRANCHES_ENABLED = False
+# ☄️ DISASTER_EVENTS, 2026-10-19: real historical precedent, not invented tonight -- found directly
+# in D:\THE_ARC\My classroom\evolution\quinary_lego.py: "COSMIC RADIATION -- 30% mutation every
+# 500 gens", a periodic, bounded mutation-rate spike to prevent the population from stabilizing
+# into stagnant local optima. Jonathan's own framing tonight: "random cosmic simulator disasters
+# and fake mass extinctions from simulated Ice Age... to prevent stabilization and stagnation."
+# Honest provenance note: the mutation-spike mechanism is directly confirmed in that recovered
+# file; the "mass extinction" extra-culling piece below is from tonight's verbal description only,
+# not yet found in recovered code, so it's a SEPARATE flag/parameter, off by default even when
+# DISASTER_EVENTS_ENABLED is True, not bundled in as if equally verified.
+DISASTER_EVENTS_ENABLED = False
+DISASTER_INTERVAL = 500            # cycles between disaster windows (matches the real precedent's "every 500")
+DISASTER_DURATION = 10             # cycles the boosted window lasts each time
+DISASTER_MUTATION_MULTIPLIER = 6.0  # ~matches the real precedent's ratio (0.30 boosted / ~0.05 baseline)
+DISASTER_EXTINCTION_FRACTION = 0.0  # extra random culling during a disaster window, 0=off (unverified mechanism)
 RBF_SIGMA = 6.0               # kernel width: how close counts as "recognized" (graded mode)
 PROTO_LEARN_RATE = 0.10       # EMA rate at which a cell's prototype moves toward calls it answers correctly
 
@@ -638,6 +668,21 @@ class Brick:
         # turns out to be anti-correlated with the right answer is exactly as useful as one that's
         # positively correlated, once the combination rule isn't forced to be a simple average.
         self.readout_weight = random.uniform(-0.5, 0.5)
+        # 🌳 DENDRITIC BRANCHES (2026-10-19, see DENDRITIC_BRANCHES_ENABLED above): only matters
+        # when that flag is True -- harmless unused state otherwise. n_branches is fixed at birth
+        # (a deliberate v1 scope cut, noted honestly: dynamic branch-count evolution via a
+        # relay-style split-on-overload mechanism is a natural next step, not built here).
+        # branch_seed determines WHICH branch each source lands on
+        # (`(src_id + branch_seed) % n_branches` in receive()) -- deterministic per source so a
+        # branch has a stable identity cycle to cycle, but evolvable: mutating the seed reshuffles
+        # the whole source-to-branch assignment at once, giving selection something real to act on
+        # without needing a per-source mutable mapping. branch_thresholds are evolvable exactly
+        # like fire_threshold, one per branch -- a branch only passes signal to the soma if its
+        # OWN accumulated input crosses its OWN threshold this cycle (see _resolve_branches()).
+        self.n_branches = random.randint(2, 4)
+        self.branch_seed = random.randint(0, 999_999)
+        self.branch_thresholds = [random.uniform(0.3, 1.5) for _ in range(self.n_branches)]
+        self.branch_acc = [0.0] * self.n_branches
         self.think_acc = 0.0
         self.relay_acc = 0.0
         
@@ -687,6 +732,13 @@ class Brick:
         for syn in self.synapses:
             syn.update_discrete(zone_cfg)
 
+    def _apply_to_soma(self, effective: float):
+        """🌉 The existing three-channel split (mem/think/relay), factored out so both the direct
+        (DENDRITIC_BRANCHES_ENABLED=False) path and the branch-gated path feed the soma identically."""
+        self.mem_acc += effective * 0.3
+        self.think_acc += effective * 0.5
+        self.relay_acc += effective * 0.2
+
     def receive(self, signal: float, src_id: int, delay: int):
         """📥 Integrate incoming signal. ROM-locked bricks still RECEIVE (ROM = frozen WEIGHTS, not deaf!
         a reflex must hear its call to respond). Tracks input_this_cycle = 'were we spoken to?'."""
@@ -697,11 +749,32 @@ class Brick:
         sign_scale = zone_cfg.get("pos_scale", 1.0) if mapped > 0 else 1.0
         # ROM bricks integrate input for FIRING decisions but don't let it overwrite their frozen state much
         scale = 0.3 if self.rom_locked else 1.0
-        self.mem_acc += mapped * 0.3 * sign_scale * scale
-        self.think_acc += mapped * 0.5 * sign_scale * scale
-        self.relay_acc += mapped * 0.2 * sign_scale * scale
+        effective = mapped * sign_scale * scale
+        # 🌳 DENDRITIC BRANCHES: route into this source's assigned branch instead of straight to
+        # the soma -- the branch only releases it to _apply_to_soma() if its own threshold is
+        # crossed this cycle (_resolve_branches(), called once per cycle before
+        # commit_accumulators()). Identical numeric result to the direct path when a branch fires,
+        # but a sub-threshold branch's input is REAL NONLINEAR GATING: zeroed, not just small.
+        if DENDRITIC_BRANCHES_ENABLED and self.n_branches > 0:
+            branch_idx = (src_id + self.branch_seed) % self.n_branches
+            self.branch_acc[branch_idx] += effective
+        else:
+            self._apply_to_soma(effective)
         self.input_this_cycle += abs(mapped)      # 🔇 record that we were spoken to (and how loudly)
         self.energy -= 0.05
+
+    def _resolve_branches(self):
+        """🌳 Called once per cycle, after all this cycle's receive() calls, before
+        commit_accumulators(). Each branch passes its accumulated signal to the soma ONLY if it
+        crossed ITS OWN evolvable threshold -- the actual nonlinearity: two weak inputs on the
+        SAME branch can cross together (real coincidence detection); the same two inputs split
+        across different branches never combine this way. No-op, zero cost, when the flag is off."""
+        if not DENDRITIC_BRANCHES_ENABLED:
+            return
+        for i in range(self.n_branches):
+            if abs(self.branch_acc[i]) >= self.branch_thresholds[i]:
+                self._apply_to_soma(self.branch_acc[i])
+            self.branch_acc[i] = 0.0
 
     def predict_next(self) -> float:
         """
@@ -1157,6 +1230,7 @@ class SovereignCore:
             # of this loop. A genuinely frozen teacher holds a stable target for its whole window.
             is_teaching = BUG5_TRUE_FROZEN_TEACHER and getattr(b, "teach_freeze", 0) > 0
             if not is_teaching:
+                b._resolve_branches()   # 🌳 gate branch inputs into the soma BEFORE committing
                 b.commit_accumulators(zone_cfg)
                 b.update_prediction_error(tgt if tgt is not None else b.mem)
             b.age += 1
@@ -1576,11 +1650,42 @@ class SovereignCore:
                     relay.fitness = max(0.0, relay.fitness - 0.015 * relay.missed_split_count)
                     relay.missed_split_count = 0  # reset -- this window's misses have been paid for
 
+    def _disaster_mutation_multiplier(self):
+        """☄️ Returns the current mutation multiplier -- 1.0 (no-op) unless DISASTER_EVENTS_ENABLED
+        and the engine is currently inside a periodic disaster window. See DISASTER_EVENTS comment
+        above for real historical precedent."""
+        if not DISASTER_EVENTS_ENABLED:
+            return 1.0
+        phase = self.current_time % DISASTER_INTERVAL
+        if phase == 0 and self.current_time > 0:
+            print(f" ☄️ COSMIC DISASTER -- Cyc {self.current_time} -- mutation x{DISASTER_MUTATION_MULTIPLIER} "
+                  f"for {DISASTER_DURATION} cycles ☄️")
+        return DISASTER_MUTATION_MULTIPLIER if phase < DISASTER_DURATION else 1.0
+
+    def _effective_zone_cfg(self, zone, mult):
+        """☄️ A zone's real config, with "mut" scaled by the current disaster multiplier. Returns
+        the real ZONE_PARAMS dict unchanged (not a copy) when mult==1.0, so there is zero
+        allocation cost outside a disaster window."""
+        if mult == 1.0:
+            return ZONE_PARAMS[zone]
+        scaled = dict(ZONE_PARAMS[zone])
+        scaled["mut"] = min(1.0, scaled["mut"] * mult)
+        return scaled
+
     def _mutate_and_select(self):
         """🧬 Evolutionary NAS: mutate high-error bricks, prune low-fitness, drift zones."""
+        disaster_mult = self._disaster_mutation_multiplier()
+        if DISASTER_EVENTS_ENABLED and DISASTER_EXTINCTION_FRACTION > 0 and disaster_mult > 1.0:
+            # ☄️ unverified "mass extinction" piece (see DISASTER_EVENTS comment) -- extra random
+            # culling on top of normal selection, only during an active disaster window, only
+            # non-immune living bricks, never the seed/firmware.
+            for b in self.bricks:
+                if (b.alive and not getattr(b, "cull_immune", False) and b.id not in self.seed_brick_ids
+                        and random.random() < DISASTER_EXTINCTION_FRACTION):
+                    b.alive = False
         for b in self.bricks:
             if not b.alive or b.rom_locked: continue
-            zone_cfg = ZONE_PARAMS[b.zone]
+            zone_cfg = self._effective_zone_cfg(b.zone, disaster_mult)
             mut_rate = zone_cfg["mut"] * (b.prediction_error / 10.0)
             if random.random() < mut_rate:
                 b.mem_acc += random.uniform(-VARIATION_MAGNITUDE, VARIATION_MAGNITUDE)
@@ -1592,7 +1697,7 @@ class SovereignCore:
         # 🧬 evolve relay SPLIT TRAITS (threshold/ratio/delay) under the same mutation pressure
         for b in self.bricks:
             if not b.alive or b.rom_locked: continue
-            zone_cfg = ZONE_PARAMS[b.zone]
+            zone_cfg = self._effective_zone_cfg(b.zone, disaster_mult)
             for relay in b.relays:
                 relay.mutate_traits(zone_cfg["mut"])
             # 🔇 evolve the firing threshold (find the right 'how much before I speak' per cell)
@@ -1607,6 +1712,17 @@ class SovereignCore:
             # lineage never finds every brick frozen at its birth value with zero variation to select on.
             if random.random() < zone_cfg["mut"]:
                 b.readout_weight = max(-5.0, min(5.0, b.readout_weight + random.uniform(-0.15, 0.15)))
+            # 🌳 evolve dendritic branch traits the same way -- only matters under
+            # DENDRITIC_BRANCHES_ENABLED, harmless dead weight otherwise. branch_seed mutation
+            # reshuffles the whole source-to-branch assignment at once (a bigger structural move,
+            # so it mutates less often than the per-branch thresholds); each threshold mutates
+            # independently, same distribution as fire_threshold.
+            if random.random() < zone_cfg["mut"] * 0.3:
+                b.branch_seed = random.randint(0, 999_999)
+            for i in range(len(b.branch_thresholds)):
+                if random.random() < zone_cfg["mut"]:
+                    b.branch_thresholds[i] = max(0.1, min(3.0,
+                        b.branch_thresholds[i] + random.uniform(-0.15, 0.15)))
 
         module_zones = defaultdict(list)
         for b in self.bricks:
@@ -1823,6 +1939,10 @@ class SovereignCore:
             slot.fire_threshold = getattr(w, "fire_threshold", 1.0)
             slot.inhibition_strength = getattr(w, "inhibition_strength", 0.5)
             slot.readout_weight = getattr(w, "readout_weight", 0.0)
+            slot.n_branches = getattr(w, "n_branches", 2)
+            slot.branch_seed = getattr(w, "branch_seed", 0)
+            slot.branch_thresholds = list(getattr(w, "branch_thresholds", [1.0, 1.0]))
+            slot.branch_acc = [0.0] * slot.n_branches
             slot.plasticity = 1.0
             slot.rom_locked = False
             # DISCOUNT+PROBATION FIX (2026-09-27): the discount itself is a deliberate, legitimate
@@ -1870,6 +1990,10 @@ class SovereignCore:
                 slot.fire_threshold = getattr(w, "fire_threshold", 1.0)
                 slot.inhibition_strength = getattr(w, "inhibition_strength", 0.5)
                 slot.readout_weight = getattr(w, "readout_weight", 0.0)
+                slot.n_branches = getattr(w, "n_branches", 2)
+                slot.branch_seed = getattr(w, "branch_seed", 0)
+                slot.branch_thresholds = list(getattr(w, "branch_thresholds", [1.0, 1.0]))
+                slot.branch_acc = [0.0] * slot.n_branches
                 slot.plasticity = 1.0; slot.rom_locked = False
                 # Same discount+probation and relay-inheritance fix as the swap path above -- this is
                 # the SAME "clone a winner" operation, on dead capacity instead of a culled slot.
