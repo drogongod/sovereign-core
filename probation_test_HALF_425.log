@@ -1,0 +1,371 @@
+======================================================================
+SOVEREIGN CORE v4.5 - v4.21b RESURRECTION: garden replants EXTINCT prototypes from ground truth (not only clones survivors)
+======================================================================
+Initial bricks: 500 | Context capacity: 1000
+Recognition: nearest | cull-frac 0.2 | alive-floor 0.6 | sleep-load 0.85 | day-context 5000 | diversity True | probation-cycles 425
+Sleep trigger: >85% context load
+Growth factor: +25% capacity per rebuild
+Zones: FAST (cleanup) / SLOW (persistence) / MIRROR (simulation)
+Sleep DAG: FAST replay → SLOW injection → ROM promotion → Drift
+ROM threshold: ≥3 consolidations + T≥8 + R≥7 + S≥8
+Accumulator bridge: |acc| >= 1.0 → discrete commit
+
+ 🌱 Seed planted: 3x reflex (2, 4, 6)->8 (ROM-locked firmware, wired entry->output across 10 modules)
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 466 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 469 zone=FAST score=0.91
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 470 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 477 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 481 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 491 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 497 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 471 zone=FAST score=0.89
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 494 zone=FAST score=0.89
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 492 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 468 zone=FAST score=0.99
+ ⏱️ Cyc 100 | Alive:530 ROM:0 | AvgFit:0.592 | 🍼TaskCorrect:0.769 | split_thr:2.79 ratio:0.50 splits:6255 | Ctx:100/1000 | 100000000cyc/s
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 473 zone=FAST score=0.99
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 479 zone=FAST score=0.99
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 496 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 457 zone=FAST score=0.99
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 458 zone=FAST score=0.99
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 464 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 498 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 462 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 519 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 529 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 484 zone=FAST score=0.91
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 467 zone=FAST score=0.92
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 499 zone=FAST score=0.92
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 489 zone=FAST score=0.91
+ ⏱️ Cyc 200 | Alive:530 ROM:0 | AvgFit:0.601 | 🍼TaskCorrect:0.848 | split_thr:2.84 ratio:0.50 splits:14147 | Ctx:200/1000 | 22cyc/s
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 485 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 520 zone=SLOW score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 530 zone=SLOW score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 510 zone=SLOW score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 500 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 483 zone=FAST score=0.87
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 486 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 454 zone=FAST score=0.93
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 487 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 482 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 493 zone=FAST score=0.97
+ ⏱️ Cyc 300 | Alive:530 ROM:0 | AvgFit:0.606 | 🍼TaskCorrect:0.879 | split_thr:2.88 ratio:0.51 splits:22543 | Ctx:300/1000 | 21cyc/s
+ ⏱️ Cyc 400 | Alive:530 ROM:30 | AvgFit:0.594 | 🍼TaskCorrect:0.853 | split_thr:2.96 ratio:0.51 splits:31141 | Ctx:400/1000 | 20cyc/s
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 495 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 490 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 478 zone=FAST score=0.96
+ ⏱️ Cyc 500 | Alive:530 ROM:30 | AvgFit:0.565 | 🍼TaskCorrect:0.757 | split_thr:3.03 ratio:0.51 splits:39802 | Ctx:500/1000 | 21cyc/s
+    🔍 (2, 4, 6)->19.2(want 8)  | (5, 7, 9)->11.3(want 11)✓ | (10, 12, 14)->18.0(want 16)  | (1, 3, 5)->8.8(want 7)  | (20, 22, 24)->25.1(want 26)✓ | (11, 13, 15)->17.5(want 17)✓
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ ⏱️ Cyc 600 | Alive:530 ROM:30 | AvgFit:0.535 | 🍼TaskCorrect:0.701 | split_thr:3.08 ratio:0.51 splits:49143 | Ctx:606/1000 | 19cyc/s
+ ⏱️ Cyc 700 | Alive:530 ROM:30 | AvgFit:0.562 | 🍼TaskCorrect:0.781 | split_thr:3.14 ratio:0.52 splits:57943 | Ctx:706/1000 | 21cyc/s
+ ⏱️ Cyc 800 | Alive:530 ROM:30 | AvgFit:0.569 | 🍼TaskCorrect:0.756 | split_thr:3.20 ratio:0.52 splits:66743 | Ctx:806/1000 | 21cyc/s
+ 🌙 SLEEP DAG TRIGGERED: global maintenance phase (replay-all / cull / copy / flush).
+    🔁 sleep replay: 8 rounds x 6 tasks rehearsed (joint consolidation)
+    🌿 garden: 0 salient/conflicted cells (ivy-covered statues) -> consolidated first
+      🌱 Growing network: cloned 34 bricks from 2 high-fitness module(s) into new capacity.
+ 💤 Sleep complete (REPLACE-ONLY: 42 weak cells retrained into clones of winners, population conserved). Gen 2 | culled 42 defective, copied 42 winners | 42 working cells protected | capacity 1000
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 459 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 453 zone=FAST score=0.89
+ ⏱️ Cyc 900 | Alive:564 ROM:30 | AvgFit:0.591 | 🍼TaskCorrect:0.836 | split_thr:3.20 ratio:0.52 splits:75576 | Ctx:56/1000 | 14cyc/s
+ ⏱️ Cyc 1000 | Alive:563 ROM:30 | AvgFit:0.596 | 🍼TaskCorrect:0.839 | split_thr:3.26 ratio:0.52 splits:85666 | Ctx:156/1000 | 17cyc/s
+    🔍 (2, 4, 6)->7.6(want 8)✓ | (5, 7, 9)->12.1(want 11)  | (10, 12, 14)->14.8(want 16)  | (1, 3, 5)->7.6(want 7)✓ | (20, 22, 24)->20.6(want 26)  | (11, 13, 15)->18.1(want 17) 
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ ⏱️ Cyc 1100 | Alive:563 ROM:30 | AvgFit:0.589 | 🍼TaskCorrect:0.891 | split_thr:3.34 ratio:0.52 splits:96565 | Ctx:262/1000 | 16cyc/s
+ ⏱️ Cyc 1200 | Alive:563 ROM:30 | AvgFit:0.574 | 🍼TaskCorrect:0.845 | split_thr:3.39 ratio:0.52 splits:106865 | Ctx:362/1000 | 17cyc/s
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 1 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 2 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 3 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 4 zone=FAST score=0.93
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 7 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 8 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 9 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 10 zone=FAST score=0.93
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 13 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 14 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 15 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 18 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 19 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 20 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 23 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 24 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 25 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 29 zone=FAST score=0.93
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 455 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 456 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 463 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 474 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 480 zone=FAST score=0.96
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 488 zone=FAST score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 5 zone=SLOW score=0.85
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 17 zone=SLOW score=0.86
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 22 zone=SLOW score=0.85
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 27 zone=SLOW score=0.85
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 461 zone=SLOW score=0.86
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 11 zone=SLOW score=0.88
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 465 zone=SLOW score=0.88
+ ⏱️ Cyc 1300 | Alive:563 ROM:30 | AvgFit:0.578 | 🍼TaskCorrect:0.850 | split_thr:3.43 ratio:0.51 splits:117165 | Ctx:462/1000 | 17cyc/s
+ ⏱️ Cyc 1400 | Alive:563 ROM:30 | AvgFit:0.571 | 🍼TaskCorrect:0.829 | split_thr:3.44 ratio:0.52 splits:127465 | Ctx:562/1000 | 17cyc/s
+ ⏱️ Cyc 1500 | Alive:563 ROM:30 | AvgFit:0.563 | 🍼TaskCorrect:0.796 | split_thr:3.51 ratio:0.51 splits:137765 | Ctx:662/1000 | 17cyc/s
+    🔍 (2, 4, 6)->8.7(want 8)✓ | (5, 7, 9)->12.1(want 11)  | (10, 12, 14)->15.6(want 16)✓ | (1, 3, 5)->7.4(want 7)✓ | (20, 22, 24)->26.0(want 26)✓ | (11, 13, 15)->17.5(want 17)✓
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ ⏱️ Cyc 1600 | Alive:563 ROM:30 | AvgFit:0.587 | 🍼TaskCorrect:0.867 | split_thr:3.58 ratio:0.51 splits:148144 | Ctx:768/1000 | 16cyc/s
+ 🌙 SLEEP DAG TRIGGERED: global maintenance phase (replay-all / cull / copy / flush).
+    🔁 sleep replay: 8 rounds x 6 tasks rehearsed (joint consolidation)
+    🌿 garden: 54 salient/conflicted cells (ivy-covered statues) -> consolidated first
+      🌱 Growing network: cloned 22 bricks from 2 high-fitness module(s) into new capacity.
+ 💤 Sleep complete (REPLACE-ONLY: 78 weak cells retrained into clones of winners, population conserved). Gen 3 | culled 78 defective, copied 78 winners | 82 working cells protected | capacity 1000
+ ⏱️ Cyc 1700 | Alive:585 ROM:30 | AvgFit:0.570 | 🍼TaskCorrect:0.846 | split_thr:3.59 ratio:0.52 splits:140433 | Ctx:18/1000 | 12cyc/s
+ ⏱️ Cyc 1800 | Alive:585 ROM:30 | AvgFit:0.585 | 🍼TaskCorrect:0.829 | split_thr:3.63 ratio:0.51 splits:149333 | Ctx:118/1000 | 18cyc/s
+ ⏱️ Cyc 1900 | Alive:585 ROM:30 | AvgFit:0.578 | 🍼TaskCorrect:0.775 | split_thr:3.66 ratio:0.51 splits:158233 | Ctx:218/1000 | 18cyc/s
+ ⏱️ Cyc 2000 | Alive:583 ROM:30 | AvgFit:0.578 | 🍼TaskCorrect:0.819 | split_thr:3.67 ratio:0.50 splits:165602 | Ctx:318/1000 | 19cyc/s
+    🔍 (2, 4, 6)->15.6(want 8)  | (5, 7, 9)->12.1(want 11)  | (10, 12, 14)->15.8(want 16)✓ | (1, 3, 5)->7.5(want 7)✓ | (20, 22, 24)->18.0(want 26)  | (11, 13, 15)->17.0(want 17)✓
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ ⏱️ Cyc 2100 | Alive:583 ROM:30 | AvgFit:0.570 | 🍼TaskCorrect:0.844 | split_thr:3.68 ratio:0.50 splits:176195 | Ctx:424/1000 | 15cyc/s
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 37 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 40 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 43 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 46 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 49 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 52 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 53 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 56 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 57 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 58 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 61 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 62 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 63 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 64 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 67 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 68 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 69 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 70 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 72 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 73 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 74 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 75 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 77 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 78 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 79 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 80 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 81 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 82 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 83 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 84 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 85 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 86 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 87 zone=FAST score=0.95
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 88 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 89 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 90 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 91 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 92 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 93 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 94 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 95 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 96 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 97 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 98 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 99 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 100 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 101 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 102 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 103 zone=SLOW score=0.98
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 104 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 105 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 106 zone=FAST score=0.90
+ ⏱️ Cyc 2200 | Alive:583 ROM:30 | AvgFit:0.585 | 🍼TaskCorrect:0.785 | split_thr:3.65 ratio:0.50 splits:186195 | Ctx:524/1000 | 16cyc/s
+ ⏱️ Cyc 2300 | Alive:583 ROM:30 | AvgFit:0.566 | 🍼TaskCorrect:0.828 | split_thr:3.69 ratio:0.50 splits:196195 | Ctx:624/1000 | 17cyc/s
+ ⏱️ Cyc 2400 | Alive:583 ROM:30 | AvgFit:0.598 | 🍼TaskCorrect:0.905 | split_thr:3.73 ratio:0.51 splits:206195 | Ctx:724/1000 | 16cyc/s
+ ⏱️ Cyc 2500 | Alive:583 ROM:30 | AvgFit:0.591 | 🍼TaskCorrect:0.870 | split_thr:3.73 ratio:0.51 splits:216195 | Ctx:824/1000 | 19cyc/s
+    🔍 (2, 4, 6)->7.4(want 8)✓ | (5, 7, 9)->12.1(want 11)  | (10, 12, 14)->15.8(want 16)✓ | (1, 3, 5)->9.2(want 7)  | (20, 22, 24)->21.6(want 26)  | (11, 13, 15)->17.0(want 17)✓
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ 🌙 SLEEP DAG TRIGGERED: global maintenance phase (replay-all / cull / copy / flush).
+    🔁 sleep replay: 8 rounds x 6 tasks rehearsed (joint consolidation)
+    🌿 garden: 71 salient/conflicted cells (ivy-covered statues) -> consolidated first
+      🌱 Growing network: cloned 33 bricks from 2 high-fitness module(s) into new capacity.
+ 💤 Sleep complete (REPLACE-ONLY: 114 weak cells retrained into clones of winners, population conserved). Gen 4 | culled 114 defective, copied 114 winners | 158 working cells protected | capacity 1000
+ ⏱️ Cyc 2600 | Alive:616 ROM:30 | AvgFit:0.549 | 🍼TaskCorrect:0.763 | split_thr:3.52 ratio:0.51 splits:172212 | Ctx:80/1000 | 14cyc/s
+ ⏱️ Cyc 2700 | Alive:613 ROM:30 | AvgFit:0.560 | 🍼TaskCorrect:0.764 | split_thr:3.59 ratio:0.51 splits:180019 | Ctx:180/1000 | 21cyc/s
+ ⏱️ Cyc 2800 | Alive:612 ROM:30 | AvgFit:0.575 | 🍼TaskCorrect:0.803 | split_thr:3.58 ratio:0.50 splits:188999 | Ctx:280/1000 | 20cyc/s
+ ⏱️ Cyc 2900 | Alive:612 ROM:30 | AvgFit:0.549 | 🍼TaskCorrect:0.767 | split_thr:3.61 ratio:0.50 splits:197999 | Ctx:380/1000 | 21cyc/s
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 115 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 118 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 121 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 124 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 127 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 130 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 131 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 134 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 135 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 136 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 139 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 140 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 141 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 142 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 145 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 146 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 147 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 148 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 151 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 152 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 153 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 154 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 157 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 158 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 159 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 160 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 163 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 164 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 165 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 166 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 169 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 170 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 171 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 172 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 175 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 176 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 177 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 178 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 181 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 182 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 183 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 184 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 186 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 187 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 188 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 189 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 191 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 192 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 193 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 194 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 195 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 196 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 197 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 198 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 199 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 200 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 201 zone=FAST score=0.90
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 202 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 203 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 204 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 205 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 206 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 207 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 208 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 209 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 210 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 211 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 212 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 213 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 214 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 215 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 216 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 217 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 218 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 219 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 220 zone=FAST score=0.97
+ ⏱️ Cyc 3000 | Alive:610 ROM:30 | AvgFit:0.570 | 🍼TaskCorrect:0.760 | split_thr:3.63 ratio:0.51 splits:206471 | Ctx:480/1000 | 21cyc/s
+    🔍 (2, 4, 6)->17.6(want 8)  | (5, 7, 9)->9.1(want 11)  | (10, 12, 14)->17.6(want 16)  | (1, 3, 5)->7.5(want 7)✓ | (20, 22, 24)->23.9(want 26)  | (11, 13, 15)->17.0(want 17)✓
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ ⏱️ Cyc 3100 | Alive:610 ROM:30 | AvgFit:0.551 | 🍼TaskCorrect:0.736 | split_thr:3.71 ratio:0.50 splits:218264 | Ctx:586/1000 | 16cyc/s
+ ⏱️ Cyc 3200 | Alive:610 ROM:30 | AvgFit:0.579 | 🍼TaskCorrect:0.819 | split_thr:3.74 ratio:0.50 splits:229464 | Ctx:686/1000 | 17cyc/s
+ ⏱️ Cyc 3300 | Alive:610 ROM:30 | AvgFit:0.564 | 🍼TaskCorrect:0.800 | split_thr:3.81 ratio:0.49 splits:240664 | Ctx:786/1000 | 17cyc/s
+ 🌙 SLEEP DAG TRIGGERED: global maintenance phase (replay-all / cull / copy / flush).
+    🔁 sleep replay: 8 rounds x 6 tasks rehearsed (joint consolidation)
+    🌿 garden: 152 salient/conflicted cells (ivy-covered statues) -> consolidated first
+      🌱 Growing network: cloned 32 bricks from 2 high-fitness module(s) into new capacity.
+ 💤 Sleep complete (REPLACE-ONLY: 120 weak cells retrained into clones of winners, population conserved). Gen 5 | culled 120 defective, copied 120 winners | 266 working cells protected | capacity 1000
+ ⏱️ Cyc 3400 | Alive:641 ROM:30 | AvgFit:0.540 | 🍼TaskCorrect:0.816 | split_thr:3.65 ratio:0.48 splits:186693 | Ctx:36/1000 | 12cyc/s
+ ⏱️ Cyc 3500 | Alive:639 ROM:30 | AvgFit:0.574 | 🍼TaskCorrect:0.761 | split_thr:3.67 ratio:0.48 splits:196433 | Ctx:136/1000 | 19cyc/s
+    🔍 (2, 4, 6)->18.3(want 8)  | (5, 7, 9)->12.1(want 11)  | (10, 12, 14)->17.5(want 16)  | (1, 3, 5)->7.9(want 7)✓ | (20, 22, 24)->26.0(want 26)✓ | (11, 13, 15)->17.5(want 17)✓
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ ⏱️ Cyc 3600 | Alive:637 ROM:30 | AvgFit:0.528 | 🍼TaskCorrect:0.663 | split_thr:3.64 ratio:0.48 splits:204366 | Ctx:242/1000 | 20cyc/s
+ ⏱️ Cyc 3700 | Alive:637 ROM:30 | AvgFit:0.515 | 🍼TaskCorrect:0.652 | split_thr:3.66 ratio:0.49 splits:212866 | Ctx:342/1000 | 22cyc/s
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 229 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 232 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 235 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 238 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 241 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 244 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 245 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 246 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 249 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 250 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 251 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 252 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 255 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 256 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 257 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 258 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 261 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 262 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 263 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 264 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 267 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 268 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 269 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 270 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 273 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 274 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 275 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 276 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 279 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 280 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 281 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 282 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 285 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 286 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 287 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 288 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 291 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 292 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 293 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 294 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 297 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 298 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 299 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 300 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 303 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 304 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 305 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 306 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 308 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 309 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 310 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 311 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 313 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 314 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 315 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 316 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 317 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 318 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 319 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 320 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 321 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 322 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 323 zone=FAST score=0.94
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 324 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 325 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 326 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 327 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 328 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 329 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 330 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 331 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 332 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 333 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 334 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 335 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 336 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 337 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 338 zone=FAST score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 339 zone=SLOW score=0.97
+ 🛡️ IMMUNE+TEACH (stable teacher 30c, then plastic): Brick 340 zone=FAST score=0.97
+ ⏱️ Cyc 3800 | Alive:637 ROM:30 | AvgFit:0.539 | 🍼TaskCorrect:0.646 | split_thr:3.70 ratio:0.50 splits:221366 | Ctx:442/1000 | 22cyc/s
+ ⏱️ Cyc 3900 | Alive:637 ROM:30 | AvgFit:0.527 | 🍼TaskCorrect:0.641 | split_thr:3.72 ratio:0.49 splits:229866 | Ctx:542/1000 | 21cyc/s
+ ⏱️ Cyc 4000 | Alive:637 ROM:30 | AvgFit:0.543 | 🍼TaskCorrect:0.750 | split_thr:3.79 ratio:0.49 splits:238366 | Ctx:642/1000 | 21cyc/s
+    🔍 (2, 4, 6)->17.6(want 8)  | (5, 7, 9)->8.7(want 11)  | (10, 12, 14)->18.0(want 16)  | (1, 3, 5)->8.7(want 7)  | (20, 22, 24)->23.9(want 26)  | (11, 13, 15)->17.0(want 17)✓
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ 💾 Checkpoint saved to sovereign_checkpoint_v4_3.json
+ ✅ Sovereign Core v4.3 halted gracefully.
